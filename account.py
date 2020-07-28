@@ -14,6 +14,28 @@ class Account:
         self.__crypt_key = None
         self.__db = sqlite3.connect('passkeep.db')
 
+    def __query(self, statement, arguments):
+        c = self.__db.cursor()
+        c.execute(statement, arguments)
+        entries = c.fetchone()
+        c.close()
+        return entries
+
+    def __execute(self, statement, arguments):
+        c = self.__db.cursor()
+        c.execute(statement, arguments)
+        self.__db.commit()
+        c.close()
+
+    @staticmethod
+    def __combine_keys(secret_key, master_key):
+        secret_key_bytes = base64.b64decode(secret_key + "===", "./")
+        master_key_bytes = base64.b64decode(master_key + "===", "./")
+        combined_key_bytes = bytearray(32)
+        for i in range(32):
+            combined_key_bytes[i] = secret_key_bytes[i] ^ master_key_bytes[i]
+        return base64.b64encode(combined_key_bytes, b'./').decode('utf-8').replace("=", "")
+
     def signup(self, password, confirmPassword):
         if len(self.__username) == 0:
             raise Exception("Username must be filled in")
@@ -25,46 +47,34 @@ class Account:
             raise Exception("Password must be at least 8 characters")
         if password == self.__username:
             raise Exception("Password must not equal username")
-        c = self.__db.cursor()
-        c.execute("SELECT username, COUNT(username) FROM account WHERE username = ?", (self.__username,))
-        entries = c.fetchone()
-        c.close()
+        entries = self.__query("SELECT username, COUNT(username) FROM account WHERE username = ?", (self.__username,))
         if entries[1] > 0:
             raise Exception("Username already exists")
         self.__create_account(password)
 
     def __create_account(self, password):
         master_key = unicodedata.normalize('NFKD', password)
-        # Values used for authentication (logging in)
-        auth = pbkdf2_sha256.using(rounds=250_000, salt_size=32).hash(master_key)
-        auth_salt = auth.split("$")[3]
-        auth_hashed = auth.split("$")[4]
-        # Values used for encryption (encrypting the vault keys)
-        crypt = pbkdf2_sha256.using(rounds=250_000, salt_size=32).hash(master_key)
-        crypt_salt = crypt.split("$")[3]
-        crypt_hashed = crypt.split("$")[4]
-        # Create a secret key
-        secret_key_bytes = secrets.token_bytes(32)
-        secret_key = base64.b64encode(secret_key_bytes, b'./').decode('utf-8').replace("=", "")
-        # Key used for authentication
-        auth_bytes = base64.b64decode(auth_hashed + "===", "./")
-        auth_xor = bytearray(32)
-        for i in range(32):
-            auth_xor[i] = secret_key_bytes[i] ^ auth_bytes[i]
-        auth_key = base64.b64encode(auth_xor, b'./').decode('utf-8').replace("=", "")
-        # Key used for encryption
-        crypt_bytes = base64.b64decode(crypt_hashed + "===", "./")
-        crypt_xor = bytearray(32)
-        for i in range(32):
-            crypt_xor[i] = secret_key_bytes[i] ^ crypt_bytes[i]
-        crypt_key = base64.b64encode(crypt_xor, b'./').decode('utf-8').replace("=", "")
-        c = self.__db.cursor()
+        secret_key = self.__generate_secret_key()
+        auth_key, auth_salt = self.__hash(secret_key, master_key)
+        crypt_key, crypt_salt = self.__hash(secret_key, master_key)
         now = datetime.now()
         insert = (self.__username, auth_key, auth_salt, crypt_salt, now, now)
-        c.execute("INSERT INTO account VALUES (?, ?, ?, ?, ?, ?)", insert)
-        self.__db.commit()
-        c.close()
+        self.__execute("INSERT INTO account VALUES (?, ?, ?, ?, ?, ?)", insert)
         keyring.set_password("bkthomps-passkeep", self.__username, secret_key)
+        self.__crypt_key = crypt_key
+
+    @staticmethod
+    def __generate_secret_key():
+        secret_key_bytes = secrets.token_bytes(32)
+        return base64.b64encode(secret_key_bytes, b'./').decode('utf-8').replace("=", "")
+
+    @classmethod
+    def __hash(cls, secret_key, master_key):
+        pair = pbkdf2_sha256.using(rounds=250_000, salt_size=32).hash(master_key)
+        salt = pair.split("$")[3]
+        hashed = pair.split("$")[4]
+        key = cls.__combine_keys(secret_key, hashed)
+        return key, salt
 
     def login(self, password):
         if len(self.__username) == 0 or len(password) == 0:
@@ -75,23 +85,19 @@ class Account:
             raise Exception("Username or password incorrect")
 
     def __valid_user(self, secret_key, password):
-        c = self.__db.cursor()
-        c.execute("SELECT username, COUNT(username) FROM account WHERE username = ?", (self.__username,))
-        entries = c.fetchone()
-        if entries[1] == 0:
+        master_key = unicodedata.normalize('NFKD', password)
+        statement = "SELECT username, auth_key, auth_salt, crypt_salt, COUNT(*) FROM account WHERE username = ?"
+        entries = self.__query(statement, (self.__username,))
+        if entries[4] == 0:
             return False
-        c.execute("SELECT auth_key, auth_salt, crypt_salt FROM account WHERE username = ?", (self.__username,))
-        entries = c.fetchone()
-        c.close()
-        auth_key = entries[0]
-        auth_salt = entries[1]
-        auth_salt_bytes = base64.b64decode(auth_salt + "===", "./")
-        auth = pbkdf2_sha256.using(rounds=250_000, salt=auth_salt_bytes).hash(password)
-        auth_hashed = auth.split("$")[4]
-        secret_key_bytes = base64.b64decode(secret_key + "===", "./")
-        auth_bytes = base64.b64decode(auth_hashed + "===", "./")
-        auth_xor = bytearray(32)
-        for i in range(32):
-            auth_xor[i] = secret_key_bytes[i] ^ auth_bytes[i]
-        auth_key_compare = base64.b64encode(auth_xor, b'./').decode('utf-8').replace("=", "")
-        return auth_key == auth_key_compare
+        auth_key = self.__hash_with_salt(secret_key, master_key, entries[2])
+        if auth_key != entries[1]:
+            return False
+        self.__crypt_key = self.__hash_with_salt(secret_key, master_key, entries[3])
+        return True
+
+    @classmethod
+    def __hash_with_salt(cls, secret_key, master_key, salt):
+        salt_bytes = base64.b64decode(salt + "===", "./")
+        pair = pbkdf2_sha256.using(rounds=250_000, salt=salt_bytes).hash(master_key)
+        return cls.__combine_keys(secret_key, pair.split("$")[4])
