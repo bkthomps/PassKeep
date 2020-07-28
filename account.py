@@ -55,8 +55,8 @@ class Account:
     def __create_account(self, password):
         master_key = unicodedata.normalize('NFKD', password)
         secret_key = self.__generate_secret_key()
-        auth_key, auth_salt = self.__hash(secret_key, master_key)
-        crypt_key, crypt_salt = self.__hash(secret_key, master_key)
+        auth_key, auth_salt = self.__generate_hash(secret_key, master_key)
+        crypt_key, crypt_salt = self.__generate_hash(secret_key, master_key)
         now = datetime.now()
         insert = (self.__username, auth_key, auth_salt, crypt_salt, now, now)
         self.__execute("INSERT INTO account VALUES (?, ?, ?, ?, ?, ?)", insert)
@@ -69,7 +69,7 @@ class Account:
         return base64.b64encode(secret_key_bytes, b'./').decode('utf-8').replace("=", "")
 
     @classmethod
-    def __hash(cls, secret_key, master_key):
+    def __generate_hash(cls, secret_key, master_key):
         pair = pbkdf2_sha256.using(rounds=250_000, salt_size=32).hash(master_key)
         salt = pair.split("$")[3]
         hashed = pair.split("$")[4]
