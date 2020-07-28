@@ -86,10 +86,38 @@ def page_dashboard():
     frame_dashboard.pack()
 
 
+def valid_user(secret_key, username, password):
+    c = db.cursor()
+    c.execute("SELECT username, COUNT(username) FROM account WHERE username = ?", (username,))
+    entries = c.fetchone()
+    if entries[1] == 0:
+        return False
+    c.execute("SELECT auth_key, auth_salt, crypt_salt FROM account WHERE username = ?", (username,))
+    entries = c.fetchone()
+    c.close()
+    auth_key = entries[0]
+    auth_salt = entries[1]
+    auth_salt_bytes = base64.b64decode(auth_salt + "===", "./")
+    auth = pbkdf2_sha256.using(rounds=250_000, salt=auth_salt_bytes).hash(password)
+    auth_hashed = auth.split("$")[4]
+    secret_key_bytes = base64.b64decode(secret_key + "===", "./")
+    auth_bytes = base64.b64decode(auth_hashed + "===", "./")
+    auth_xor = bytearray(32)
+    for i in range(32):
+        auth_xor[i] = secret_key_bytes[i] ^ auth_bytes[i]
+    auth_key_compare = base64.b64encode(auth_xor, b'./').decode('utf-8').replace("=", "")
+    return auth_key == auth_key_compare
+
+
 def login(text, username, password):
     if len(username.get()) == 0 or len(password.get()) == 0:
         text["text"] = "Must fill in fields"
         return
+    secret_key = keyring.get_password("bkthomps-passkeep", username.get())
+    if not secret_key or not valid_user(secret_key, username.get(), password.get()):
+        text["text"] = "Username or password incorrect"
+        return
+    page_dashboard()
     text["text"] = ""
     username.delete(0, 'end')
     password.delete(0, 'end')
@@ -127,7 +155,6 @@ def create_account(username, master_password):
     db.commit()
     c.close()
     keyring.set_password("bkthomps-passkeep", username, secret_key)
-    page_dashboard()
 
 
 def signup(text, username, password, confirmPassword):
@@ -151,6 +178,7 @@ def signup(text, username, password, confirmPassword):
         text["text"] = "Username already exists"
         return
     create_account(username.get(), password.get())
+    page_dashboard()
     text["text"] = ""
     username.delete(0, 'end')
     password.delete(0, 'end')
