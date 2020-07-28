@@ -5,6 +5,7 @@ import unicodedata
 from datetime import datetime
 
 import keyring
+from Crypto.Cipher import AES
 from passlib.hash import pbkdf2_sha256
 
 
@@ -27,14 +28,22 @@ class Account:
         self.__db.commit()
         c.close()
 
-    @staticmethod
-    def __combine_keys(secret_key, master_key):
-        secret_key_bytes = base64.b64decode(secret_key + "===", "./")
-        master_key_bytes = base64.b64decode(master_key + "===", "./")
+    @classmethod
+    def __combine_keys(cls, secret_key, master_key):
+        secret_key_bytes = cls.__byte_string(secret_key)
+        master_key_bytes = cls.__byte_string(master_key)
         combined_key_bytes = bytearray(32)
         for i in range(32):
             combined_key_bytes[i] = secret_key_bytes[i] ^ master_key_bytes[i]
-        return base64.b64encode(combined_key_bytes, b'./').decode('utf-8').replace("=", "")
+        return cls.__base64_string(combined_key_bytes)
+
+    @staticmethod
+    def __byte_string(base64_string):
+        return base64.b64decode(base64_string + "===", "./")
+
+    @staticmethod
+    def __base64_string(byte_string):
+        return base64.b64encode(byte_string, b'./').decode('utf-8').replace("=", "")
 
     def signup(self, password, confirmPassword):
         if len(self.__username) == 0:
@@ -59,14 +68,15 @@ class Account:
         crypt_key, crypt_salt = self.__generate_hash(secret_key, master_key)
         now = datetime.now()
         insert = (self.__username, auth_key, auth_salt, crypt_salt, now, now)
-        self.__execute("INSERT INTO account VALUES (?, ?, ?, ?, ?, ?)", insert)
+        self.__execute("INSERT INTO account (username, auth_key, auth_salt, crypt_salt, modified, created) "
+                       "VALUES (?, ?, ?, ?, ?, ?)", insert)
         keyring.set_password("bkthomps-passkeep", self.__username, secret_key)
         self.__crypt_key = crypt_key
 
-    @staticmethod
-    def __generate_secret_key():
+    @classmethod
+    def __generate_secret_key(cls):
         secret_key_bytes = secrets.token_bytes(32)
-        return base64.b64encode(secret_key_bytes, b'./').decode('utf-8').replace("=", "")
+        return cls.__base64_string(secret_key_bytes)
 
     @classmethod
     def __generate_hash(cls, secret_key, master_key):
@@ -98,6 +108,34 @@ class Account:
 
     @classmethod
     def __hash_with_salt(cls, secret_key, master_key, salt):
-        salt_bytes = base64.b64decode(salt + "===", "./")
+        salt_bytes = cls.__byte_string(salt)
         pair = pbkdf2_sha256.using(rounds=250_000, salt=salt_bytes).hash(master_key)
         return cls.__combine_keys(secret_key, pair.split("$")[4])
+
+    def add_vault(self, account_name, description, password):
+        crypt_bytes = self.__byte_string(self.__crypt_key)
+        account_name_bytes = account_name.encode().ljust(16, b'\0')
+        description_bytes = description.encode().ljust(16, b'\0')
+        password_bytes = password.encode().ljust(16, b'\0')
+        cipher = AES.new(crypt_bytes, AES.MODE_CBC)
+        encrypted_account_name_bytes = cipher.encrypt(account_name_bytes)
+        encrypted_description_bytes = cipher.encrypt(description_bytes)
+        encrypted_password_bytes = cipher.encrypt(password_bytes)
+        iv_base64 = self.__base64_string(cipher.IV)
+        account_name_base64 = self.__base64_string(encrypted_account_name_bytes)
+        description_base64 = self.__base64_string(encrypted_description_bytes)
+        password_base64 = self.__base64_string(encrypted_password_bytes)
+        now = datetime.now()
+        insert = (iv_base64, self.__username, account_name_base64, description_base64, password_base64, now, now)
+        self.__execute("INSERT INTO vault (iv, username, account_name, description, password, modified, created) "
+                       "VALUES (?, ?, ?, ?, ?, ?, ?)", insert)
+
+    def get_vaults(self):
+        # TODO: get all instead of just 1, then return all
+        crypt_bytes = self.__byte_string(self.__crypt_key)
+        statement = "SELECT id, iv, account_name FROM vault WHERE username = ?"
+        entries = self.__query(statement, (self.__username,))
+        vault_id = entries[0]
+        iv = self.__byte_string(entries[1])
+        cipher = AES.new(crypt_bytes, AES.MODE_CBC, iv=iv)
+        account_name = cipher.decrypt(self.__byte_string(entries[2])).rstrip(b'\0').decode()

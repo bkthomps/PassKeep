@@ -2,18 +2,19 @@ from tkinter import *
 
 from account import Account
 
+account = None
 gui = Tk()
 frame_welcome = Frame(gui)
 frame_login = Frame(gui)
 frame_signup = Frame(gui)
-frame_dashboard = Frame(gui)
+frame_create_vault = Frame(gui)
 
 
 def frames_vanish():
     frame_welcome.pack_forget()
     frame_login.pack_forget()
     frame_signup.pack_forget()
-    frame_dashboard.pack_forget()
+    frame_create_vault.pack_forget()
 
 
 def init_welcome(frame):
@@ -46,27 +47,42 @@ def init_login(frame):
 
 def init_signup(frame):
     t1 = Label(frame, text="", fg='dark red')
-    l1 = Label(frame, text="Username")
-    l2 = Label(frame, text="Password")
-    l3 = Label(frame, text="Confirm Password")
+    t2 = Label(frame, text="Username")
+    t3 = Label(frame, text="Password")
+    t4 = Label(frame, text="Confirm Password")
     e1 = Entry(frame)
     e2 = Entry(frame, show="\u2022")
     e3 = Entry(frame, show="\u2022")
     b1 = Button(frame, text="Back", command=lambda: page_welcome(t1, e1, e2, e3), width=10, height=2)
     b2 = Button(frame, text="Signup", command=lambda: signup(t1, e1, e2, e3), width=10, height=2)
     t1.grid(row=0, column=0, columnspan=2, padx=5, pady=5)
-    l1.grid(row=1, column=0, padx=5, pady=5)
+    t2.grid(row=1, column=0, padx=5, pady=5)
     e1.grid(row=1, column=1, padx=5, pady=5)
-    l2.grid(row=2, column=0, padx=5, pady=5)
+    t3.grid(row=2, column=0, padx=5, pady=5)
     e2.grid(row=2, column=1, padx=5, pady=5)
-    l3.grid(row=3, column=0, padx=5, pady=5)
+    t4.grid(row=3, column=0, padx=5, pady=5)
     e3.grid(row=3, column=1, padx=5, pady=5)
     b1.grid(row=4, column=0, padx=10, pady=10)
     b2.grid(row=4, column=1, padx=10, pady=10)
 
 
-def init_dashboard(frame):
-    Label(frame, text="Dashboard").grid(row=0, column=0, padx=5, pady=5)
+def init_create_vault(frame):
+    t1 = Label(frame, text="Account Name")
+    t2 = Label(frame, text="Description")
+    t3 = Label(frame, text="Password")
+    e1 = Entry(frame)
+    e2 = Entry(frame)
+    e3 = Entry(frame)
+    b1 = Button(frame, text="Back", command=lambda: page_welcome(e1, e2, e3), width=10, height=2)
+    b2 = Button(frame, text="Add", command=lambda: add_vault(e1, e2, e3), width=10, height=2)
+    t1.grid(row=0, column=0, padx=5, pady=5)
+    e1.grid(row=0, column=1, padx=5, pady=5)
+    t2.grid(row=1, column=0, padx=5, pady=5)
+    e2.grid(row=1, column=1, padx=5, pady=5)
+    t3.grid(row=2, column=0, padx=5, pady=5)
+    e3.grid(row=2, column=1, padx=5, pady=5)
+    b1.grid(row=3, column=0, padx=10, pady=10)
+    b2.grid(row=3, column=1, padx=10, pady=10)
 
 
 def page_welcome(text, *args):
@@ -87,16 +103,18 @@ def page_signup():
     frame_signup.pack()
 
 
-def page_dashboard():
+def page_create_vault():
     frames_vanish()
-    frame_dashboard.pack()
+    frame_create_vault.pack()
 
 
 def login(text, username, password):
-    account = Account(username.get())
+    temp = Account(username.get())
     try:
-        account.login(password.get())
-        page_dashboard()
+        global account
+        temp.login(password.get())
+        account = temp
+        page_create_vault()
         text["text"] = ""
         username.delete(0, 'end')
         password.delete(0, 'end')
@@ -105,10 +123,12 @@ def login(text, username, password):
 
 
 def signup(text, username, password, confirmPassword):
-    account = Account(username.get())
+    temp = Account(username.get())
     try:
-        account.signup(password.get(), confirmPassword.get())
-        page_dashboard()
+        global account
+        temp.signup(password.get(), confirmPassword.get())
+        account = temp
+        page_create_vault()
         text["text"] = ""
         username.delete(0, 'end')
         password.delete(0, 'end')
@@ -117,11 +137,18 @@ def signup(text, username, password, confirmPassword):
         text["text"] = str(e)
 
 
+def add_vault(account_name, description, password):
+    account.add_vault(account_name.get(), description.get(), password.get())
+    account_name.delete(0, 'end')
+    description.delete(0, 'end')
+    password.delete(0, 'end')
+
+
 if __name__ == '__main__':
     init_welcome(frame_welcome)
     init_login(frame_login)
     init_signup(frame_signup)
-    init_dashboard(frame_dashboard)
+    init_create_vault(frame_create_vault)
     frames_vanish()
     frame_welcome.pack()
     width = 400
