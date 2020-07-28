@@ -7,7 +7,7 @@ DROP TABLE IF EXISTS vault;
 
 CREATE TABLE account (
     username    VARCHAR(50) PRIMARY KEY,
-    auth_hashed VARCHAR(50) NOT NULL,
+    auth_key    VARCHAR(50) NOT NULL,
     auth_salt   VARCHAR(50) NOT NULL,
     crypt_salt  VARCHAR(50) NOT NULL,
     modified    DATETIME    NOT NULL,

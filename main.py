@@ -1,4 +1,5 @@
 import base64
+from datetime import datetime
 from tkinter import *
 import secrets
 import unicodedata as ud
@@ -6,12 +7,15 @@ import unicodedata as ud
 # from Crypto.Cipher import AES
 import keyring as keyring
 from passlib.hash import pbkdf2_sha256
+import sqlite3
 
 gui = Tk()
 frame_logged_out = Frame(gui)
 frame_login = Frame(gui)
 frame_signup = Frame(gui)
 frame_dashboard = Frame(gui)
+
+db = sqlite3.connect('passkeep.db')
 
 
 def frames_vanish():
@@ -77,6 +81,11 @@ def page_signup():
     frame_signup.pack()
 
 
+def page_dashboard():
+    frames_vanish()
+    frame_dashboard.pack()
+
+
 def login(text, username, password):
     if len(username.get()) == 0 or len(password.get()) == 0:
         text["text"] = "Must fill in fields"
@@ -87,7 +96,6 @@ def login(text, username, password):
 
 
 def create_account(username, master_password):
-    # TODO: fail is user exists
     master_key = ud.normalize('NFKD', master_password)
     # Values used for authentication (logging in)
     auth = pbkdf2_sha256.using(rounds=250_000, salt_size=32).hash(master_key)
@@ -112,7 +120,14 @@ def create_account(username, master_password):
     for i in range(32):
         crypt_xor[i] = secret_key_bytes[i] ^ crypt_bytes[i]
     crypt_key = base64.b64encode(crypt_xor, b'./').decode('utf-8').replace("=", "")
+    c = db.cursor()
+    now = datetime.now()
+    insert = (username, auth_key, auth_salt, crypt_salt, now, now)
+    c.execute("INSERT INTO account VALUES (?, ?, ?, ?, ?, ?)", insert)
+    db.commit()
+    c.close()
     keyring.set_password("bkthomps-passkeep", username, secret_key)
+    page_dashboard()
 
 
 def signup(text, username, password, confirmPassword):
@@ -128,6 +143,13 @@ def signup(text, username, password, confirmPassword):
     if password.get() == username.get():
         text["text"] = "Password must not equal username"
         return
+    c = db.cursor()
+    c.execute("SELECT username, COUNT(username) FROM account WHERE username = ?", (username.get(),))
+    entries = c.fetchone()
+    c.close()
+    if entries[1] > 0:
+        text["text"] = "Username already exists"
+        return
     create_account(username.get(), password.get())
     text["text"] = ""
     username.delete(0, 'end')
@@ -139,6 +161,7 @@ if __name__ == '__main__':
     init_logged_out(frame_logged_out)
     init_login(frame_login)
     init_signup(frame_signup)
+    init_dashboard(frame_dashboard)
     frames_vanish()
     frame_logged_out.pack()
     width = 400
