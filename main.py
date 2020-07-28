@@ -32,7 +32,7 @@ def init_login(frame):
     t2 = Label(frame, text="Username")
     t3 = Label(frame, text="Password")
     e1 = Entry(frame)
-    e2 = Entry(frame)
+    e2 = Entry(frame, show="\u2022")
     b1 = Button(frame, text="Back", command=lambda: page_welcome(t1, e1, e2), width=10, height=2)
     b2 = Button(frame, text="Login", command=lambda: login(t1, e1, e2), width=10, height=2)
     t1.grid(row=0, column=0, columnspan=2, padx=5, pady=5)
@@ -50,8 +50,8 @@ def init_signup(frame):
     l2 = Label(frame, text="Password")
     l3 = Label(frame, text="Confirm Password")
     e1 = Entry(frame)
-    e2 = Entry(frame)
-    e3 = Entry(frame)
+    e2 = Entry(frame, show="\u2022")
+    e3 = Entry(frame, show="\u2022")
     b1 = Button(frame, text="Back", command=lambda: page_welcome(t1, e1, e2, e3), width=10, height=2)
     b2 = Button(frame, text="Signup", command=lambda: signup(t1, e1, e2, e3), width=10, height=2)
     t1.grid(row=0, column=0, columnspan=2, padx=5, pady=5)
@@ -127,7 +127,7 @@ if __name__ == '__main__':
     width = 400
     height = 225
     x = (gui.winfo_screenwidth() - width) // 2
-    y = (gui.winfo_screenheight() - height) // 2
+    y = (gui.winfo_screenheight() - height) // 3
     gui.geometry("{}x{}+{}+{}".format(width, height, x, y))
     gui.title("PassKeep")
     gui.mainloop()
