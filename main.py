@@ -5,7 +5,7 @@ import unicodedata as ud
 
 # from Crypto.Cipher import AES
 import keyring as keyring
-from passlib.hash import pbkdf2_sha512
+from passlib.hash import pbkdf2_sha256
 
 gui = Tk()
 frame_logged_out = Frame(gui)
@@ -90,11 +90,11 @@ def create_account(username, master_password):
     # TODO: fail is user exists
     master_key = ud.normalize('NFKD', master_password)
     # Values used for authentication (logging in)
-    auth = pbkdf2_sha512.using(rounds=250_000, salt_size=64).hash(master_key)
+    auth = pbkdf2_sha256.using(rounds=250_000, salt_size=32).hash(master_key)
     auth_salt = auth.split("$")[3]
     auth_hashed = auth.split("$")[4]
     # Values used for encryption (encrypting the vault keys)
-    crypt = pbkdf2_sha512.using(rounds=250_000, salt_size=64).hash(master_key)
+    crypt = pbkdf2_sha256.using(rounds=250_000, salt_size=32).hash(master_key)
     crypt_salt = crypt.split("$")[3]
     crypt_hashed = crypt.split("$")[4]
     # Create a secret key
