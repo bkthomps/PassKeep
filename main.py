@@ -1,21 +1,12 @@
-import base64
-from datetime import datetime
 from tkinter import *
-import secrets
-import unicodedata as ud
 
-# from Crypto.Cipher import AES
-import keyring as keyring
-from passlib.hash import pbkdf2_sha256
-import sqlite3
+from account import Account
 
 gui = Tk()
 frame_logged_out = Frame(gui)
 frame_login = Frame(gui)
 frame_signup = Frame(gui)
 frame_dashboard = Frame(gui)
-
-db = sqlite3.connect('passkeep.db')
 
 
 def frames_vanish():
@@ -86,103 +77,29 @@ def page_dashboard():
     frame_dashboard.pack()
 
 
-def valid_user(secret_key, username, password):
-    c = db.cursor()
-    c.execute("SELECT username, COUNT(username) FROM account WHERE username = ?", (username,))
-    entries = c.fetchone()
-    if entries[1] == 0:
-        return False
-    c.execute("SELECT auth_key, auth_salt, crypt_salt FROM account WHERE username = ?", (username,))
-    entries = c.fetchone()
-    c.close()
-    auth_key = entries[0]
-    auth_salt = entries[1]
-    auth_salt_bytes = base64.b64decode(auth_salt + "===", "./")
-    auth = pbkdf2_sha256.using(rounds=250_000, salt=auth_salt_bytes).hash(password)
-    auth_hashed = auth.split("$")[4]
-    secret_key_bytes = base64.b64decode(secret_key + "===", "./")
-    auth_bytes = base64.b64decode(auth_hashed + "===", "./")
-    auth_xor = bytearray(32)
-    for i in range(32):
-        auth_xor[i] = secret_key_bytes[i] ^ auth_bytes[i]
-    auth_key_compare = base64.b64encode(auth_xor, b'./').decode('utf-8').replace("=", "")
-    return auth_key == auth_key_compare
-
-
 def login(text, username, password):
-    if len(username.get()) == 0 or len(password.get()) == 0:
-        text["text"] = "Must fill in fields"
-        return
-    secret_key = keyring.get_password("bkthomps-passkeep", username.get())
-    if not secret_key or not valid_user(secret_key, username.get(), password.get()):
-        text["text"] = "Username or password incorrect"
-        return
-    page_dashboard()
-    text["text"] = ""
-    username.delete(0, 'end')
-    password.delete(0, 'end')
-
-
-def create_account(username, master_password):
-    master_key = ud.normalize('NFKD', master_password)
-    # Values used for authentication (logging in)
-    auth = pbkdf2_sha256.using(rounds=250_000, salt_size=32).hash(master_key)
-    auth_salt = auth.split("$")[3]
-    auth_hashed = auth.split("$")[4]
-    # Values used for encryption (encrypting the vault keys)
-    crypt = pbkdf2_sha256.using(rounds=250_000, salt_size=32).hash(master_key)
-    crypt_salt = crypt.split("$")[3]
-    crypt_hashed = crypt.split("$")[4]
-    # Create a secret key
-    secret_key_bytes = secrets.token_bytes(32)
-    secret_key = base64.b64encode(secret_key_bytes, b'./').decode('utf-8').replace("=", "")
-    # Key used for authentication
-    auth_bytes = base64.b64decode(auth_hashed + "===", "./")
-    auth_xor = bytearray(32)
-    for i in range(32):
-        auth_xor[i] = secret_key_bytes[i] ^ auth_bytes[i]
-    auth_key = base64.b64encode(auth_xor, b'./').decode('utf-8').replace("=", "")
-    # Key used for encryption
-    crypt_bytes = base64.b64decode(crypt_hashed + "===", "./")
-    crypt_xor = bytearray(32)
-    for i in range(32):
-        crypt_xor[i] = secret_key_bytes[i] ^ crypt_bytes[i]
-    crypt_key = base64.b64encode(crypt_xor, b'./').decode('utf-8').replace("=", "")
-    c = db.cursor()
-    now = datetime.now()
-    insert = (username, auth_key, auth_salt, crypt_salt, now, now)
-    c.execute("INSERT INTO account VALUES (?, ?, ?, ?, ?, ?)", insert)
-    db.commit()
-    c.close()
-    keyring.set_password("bkthomps-passkeep", username, secret_key)
+    account = Account(username.get())
+    try:
+        account.login(password.get())
+        page_dashboard()
+        text["text"] = ""
+        username.delete(0, 'end')
+        password.delete(0, 'end')
+    except Exception as e:
+        text["text"] = str(e)
 
 
 def signup(text, username, password, confirmPassword):
-    if len(username.get()) == 0:
-        text["text"] = "Username must be filled in"
-        return
-    if password.get() != confirmPassword.get():
-        text["text"] = "Password does not match confirmation"
-        return
-    if len(password.get()) < 8:
-        text["text"] = "Password must be at least 8 characters"
-        return
-    if password.get() == username.get():
-        text["text"] = "Password must not equal username"
-        return
-    c = db.cursor()
-    c.execute("SELECT username, COUNT(username) FROM account WHERE username = ?", (username.get(),))
-    entries = c.fetchone()
-    c.close()
-    if entries[1] > 0:
-        text["text"] = "Username already exists"
-        return
-    create_account(username.get(), password.get())
-    page_dashboard()
-    text["text"] = ""
-    username.delete(0, 'end')
-    password.delete(0, 'end')
-    confirmPassword.delete(0, 'end')
+    account = Account(username.get())
+    try:
+        account.signup(password.get(), confirmPassword.get())
+        page_dashboard()
+        text["text"] = ""
+        username.delete(0, 'end')
+        password.delete(0, 'end')
+        confirmPassword.delete(0, 'end')
+    except Exception as e:
+        text["text"] = str(e)
 
 
 if __name__ == '__main__':
