@@ -1,4 +1,11 @@
+import base64
 from tkinter import *
+import secrets
+import unicodedata as ud
+
+# from Crypto.Cipher import AES
+import keyring as keyring
+from passlib.hash import pbkdf2_sha512
 
 gui = Tk()
 frame_logged_out = Frame(gui)
@@ -79,6 +86,35 @@ def login(text, username, password):
     password.delete(0, 'end')
 
 
+def create_account(username, master_password):
+    # TODO: fail is user exists
+    master_key = ud.normalize('NFKD', master_password)
+    # Values used for authentication (logging in)
+    auth = pbkdf2_sha512.using(rounds=250_000, salt_size=64).hash(master_key)
+    auth_salt = auth.split("$")[3]
+    auth_hashed = auth.split("$")[4]
+    # Values used for encryption (encrypting the vault keys)
+    crypt = pbkdf2_sha512.using(rounds=250_000, salt_size=64).hash(master_key)
+    crypt_salt = crypt.split("$")[3]
+    crypt_hashed = crypt.split("$")[4]
+    # Create a secret key
+    secret_key_bytes = secrets.token_bytes(32)
+    secret_key = base64.b64encode(secret_key_bytes, b'./').decode('utf-8').replace("=", "")
+    # Key used for authentication
+    auth_bytes = base64.b64decode(auth_hashed + "===", "./")
+    auth_xor = bytearray(32)
+    for i in range(32):
+        auth_xor[i] = secret_key_bytes[i] ^ auth_bytes[i]
+    auth_key = base64.b64encode(auth_xor, b'./').decode('utf-8').replace("=", "")
+    # Key used for encryption
+    crypt_bytes = base64.b64decode(crypt_hashed + "===", "./")
+    crypt_xor = bytearray(32)
+    for i in range(32):
+        crypt_xor[i] = secret_key_bytes[i] ^ crypt_bytes[i]
+    crypt_key = base64.b64encode(crypt_xor, b'./').decode('utf-8').replace("=", "")
+    keyring.set_password("bkthomps-passkeep", username, secret_key)
+
+
 def signup(text, username, password, confirmPassword):
     if len(username.get()) == 0:
         text["text"] = "Username must be filled in"
@@ -92,6 +128,7 @@ def signup(text, username, password, confirmPassword):
     if password.get() == username.get():
         text["text"] = "Password must not equal username"
         return
+    create_account(username.get(), password.get())
     text["text"] = ""
     username.delete(0, 'end')
     password.delete(0, 'end')
