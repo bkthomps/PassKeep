@@ -2,7 +2,7 @@ from tkinter import *
 
 from account import Account
 
-account = None
+account = Account("")
 gui = Tk()
 frame_welcome = Frame(gui)
 frame_login = Frame(gui)

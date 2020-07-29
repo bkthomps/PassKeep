@@ -22,6 +22,13 @@ class Account:
         c.close()
         return entries
 
+    def __query_all(self, statement, arguments):
+        c = self.__db.cursor()
+        c.execute(statement, arguments)
+        entries = c.fetchall()
+        c.close()
+        return entries
+
     def __execute(self, statement, arguments):
         c = self.__db.cursor()
         c.execute(statement, arguments)
@@ -114,28 +121,41 @@ class Account:
 
     def add_vault(self, account_name, description, password):
         crypt_bytes = self.__byte_string(self.__crypt_key)
-        account_name_bytes = account_name.encode().ljust(16, b'\0')
-        description_bytes = description.encode().ljust(16, b'\0')
-        password_bytes = password.encode().ljust(16, b'\0')
+        account_name_bytes = self.__zero_pad(account_name).encode()
+        description_bytes = self.__zero_pad(description).encode()
+        password_bytes = self.__zero_pad(password).encode()
         cipher = AES.new(crypt_bytes, AES.MODE_CBC)
-        encrypted_account_name_bytes = cipher.encrypt(account_name_bytes)
-        encrypted_description_bytes = cipher.encrypt(description_bytes)
-        encrypted_password_bytes = cipher.encrypt(password_bytes)
-        iv_base64 = self.__base64_string(cipher.IV)
-        account_name_base64 = self.__base64_string(encrypted_account_name_bytes)
-        description_base64 = self.__base64_string(encrypted_description_bytes)
-        password_base64 = self.__base64_string(encrypted_password_bytes)
+        iv = cipher.IV
+        encrypted_account_name = self.__base64_string(cipher.encrypt(account_name_bytes))
+        encrypted_description = self.__base64_string(cipher.encrypt(description_bytes))
+        encrypted_password = self.__base64_string(cipher.encrypt(password_bytes))
         now = datetime.now()
-        insert = (iv_base64, self.__username, account_name_base64, description_base64, password_base64, now, now)
+        insert = (iv, self.__username, encrypted_account_name, encrypted_description, encrypted_password, now, now)
         self.__execute("INSERT INTO vault (iv, username, account_name, description, password, modified, created) "
                        "VALUES (?, ?, ?, ?, ?, ?, ?)", insert)
 
+    @staticmethod
+    def __zero_pad(string):
+        return string.ljust(len(string) + 16 - len(string) % 16, '\0')
+
     def get_vaults(self):
-        # TODO: get all instead of just 1, then return all
         crypt_bytes = self.__byte_string(self.__crypt_key)
         statement = "SELECT id, iv, account_name FROM vault WHERE username = ?"
-        entries = self.__query(statement, (self.__username,))
-        vault_id = entries[0]
-        iv = self.__byte_string(entries[1])
-        cipher = AES.new(crypt_bytes, AES.MODE_CBC, iv=iv)
-        account_name = cipher.decrypt(self.__byte_string(entries[2])).rstrip(b'\0').decode()
+        rows = self.__query_all(statement, (self.__username,))
+        vaults = []
+        for row in rows:
+            vault_id = row[0]
+            cipher = AES.new(crypt_bytes, AES.MODE_CBC, iv=row[1])
+            account_name = cipher.decrypt(self.__byte_string(row[2])).decode()
+            vaults.append((vault_id, account_name))
+        return vaults
+
+    def get_vault(self, vault_id):
+        crypt_bytes = self.__byte_string(self.__crypt_key)
+        statement = "SELECT iv, account_name, description, password FROM vault WHERE id = ?"
+        entries = self.__query(statement, (vault_id,))
+        cipher = AES.new(crypt_bytes, AES.MODE_CBC, iv=entries[0])
+        account_name = cipher.decrypt(self.__byte_string(entries[1])).decode()
+        description = cipher.decrypt(self.__byte_string(entries[2])).decode()
+        password = cipher.decrypt(self.__byte_string(entries[3])).decode()
+        return account_name, description, password
