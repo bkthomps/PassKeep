@@ -138,6 +138,10 @@ class Account:
     def _zero_pad(string):
         return string.ljust(len(string) + 16 - len(string) % 16, '\0')
 
+    @staticmethod
+    def _byte_to_str(byte):
+        return str(byte)[2:][:-1].split("\\x00", 1)[0]
+
     def get_vaults(self):
         crypt_bytes = self._byte_string(self._crypt_key)
         statement = "SELECT id, iv, account_name FROM vault WHERE username = ?"
@@ -146,7 +150,7 @@ class Account:
         for row in rows:
             vault_id = row[0]
             cipher = AES.new(crypt_bytes, AES.MODE_CBC, iv=row[1])
-            account_name = cipher.decrypt(self._byte_string(row[2])).decode()
+            account_name = self._byte_to_str(cipher.decrypt(self._byte_string(row[2])))
             vaults.append((vault_id, account_name))
         return vaults
 
