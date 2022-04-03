@@ -9,6 +9,10 @@ from Crypto.Cipher import AES
 from passlib.hash import pbkdf2_sha256
 
 
+class AccountException(Exception):
+    pass
+
+
 class Account:
     def __init__(self, username):
         self._username = username
@@ -52,21 +56,23 @@ class Account:
     def _base64_string(byte_string):
         return base64.b64encode(byte_string, b'./').decode('utf-8').replace("=", "")
 
-    def signup(self, password, confirmPassword):
-        if len(self._username) == 0:
-            raise Exception("Username must be filled in")
-        if len(self._username) > 40:
-            raise Exception("Username must be at most 40 characters")
-        if password != confirmPassword:
-            raise Exception("Password does not match confirmation")
+    @staticmethod
+    def signup(username, password, confirm_password):
+        if len(username) == 0:
+            raise AccountException("Username must be filled in")
+        if len(username) > 40:
+            raise AccountException("Username must be at most 40 characters")
+        if password != confirm_password:
+            raise AccountException("Password does not match confirmation")
         if len(password) < 8:
-            raise Exception("Password must be at least 8 characters")
-        if password == self._username:
-            raise Exception("Password must not equal username")
-        entries = self._query("SELECT username, COUNT(username) FROM account WHERE username = ?", (self._username,))
+            raise AccountException("Password must be at least 8 characters")
+        if password == username:
+            raise AccountException("Password must not equal username")
+        account = Account(username)
+        entries = account._query("SELECT username, COUNT(username) FROM account WHERE username = ?", (username,))
         if entries[1] > 0:
-            raise Exception("Username already exists")
-        self._create_account(password)
+            raise AccountException("Username already exists")
+        account._create_account(password)
 
     def _create_account(self, password):
         master_key = unicodedata.normalize('NFKD', password)
@@ -87,19 +93,22 @@ class Account:
 
     @classmethod
     def _generate_hash(cls, secret_key, master_key):
-        pair = pbkdf2_sha256.using(rounds=250_000, salt_size=32).hash(master_key)
+        pair = pbkdf2_sha256.using(rounds=250000, salt_size=32).hash(master_key)
         salt = pair.split("$")[3]
         hashed = pair.split("$")[4]
         key = cls._combine_keys(secret_key, hashed)
         return key, salt
 
-    def login(self, password):
-        if len(self._username) == 0 or len(password) == 0:
-            raise Exception("Must fill in fields")
-        secret_key = keyring.get_password("bkthomps-passkeep", self._username)
+    @staticmethod
+    def login(username, password):
+        if len(username) == 0 or len(password) == 0:
+            raise AccountException("Must fill in fields")
+        account = Account(username)
+        secret_key = keyring.get_password("bkthomps-passkeep", username)
         master_key = unicodedata.normalize('NFKD', password)
-        if not secret_key or not self._valid_user(secret_key, master_key):
-            raise Exception("Username or password incorrect")
+        if not secret_key or not account._valid_user(secret_key, master_key):
+            raise AccountException("Username or password incorrect")
+        return account
 
     def _valid_user(self, secret_key, password):
         master_key = unicodedata.normalize('NFKD', password)
@@ -116,7 +125,7 @@ class Account:
     @classmethod
     def _hash_with_salt(cls, secret_key, master_key, salt):
         salt_bytes = cls._byte_string(salt)
-        pair = pbkdf2_sha256.using(rounds=250_000, salt=salt_bytes).hash(master_key)
+        pair = pbkdf2_sha256.using(rounds=250000, salt=salt_bytes).hash(master_key)
         return cls._combine_keys(secret_key, pair.split("$")[4])
 
     def add_vault(self, account_name, description, password):
@@ -156,10 +165,12 @@ class Account:
 
     def get_vault(self, vault_id):
         crypt_bytes = self._byte_string(self._crypt_key)
-        statement = "SELECT iv, account_name, description, password FROM vault WHERE id = ?"
+        statement = "SELECT username, iv, account_name, description, password FROM vault WHERE id = ?"
         entries = self._query(statement, (vault_id,))
-        cipher = AES.new(crypt_bytes, AES.MODE_CBC, iv=entries[0])
-        account_name = cipher.decrypt(self._byte_string(entries[1])).decode()
-        description = cipher.decrypt(self._byte_string(entries[2])).decode()
-        password = cipher.decrypt(self._byte_string(entries[3])).decode()
+        if not entries or entries[0] != self._username:
+            raise AccountException("Invalid vault id")
+        cipher = AES.new(crypt_bytes, AES.MODE_CBC, iv=entries[1])
+        account_name = cipher.decrypt(self._byte_string(entries[2])).decode()
+        description = cipher.decrypt(self._byte_string(entries[3])).decode()
+        password = cipher.decrypt(self._byte_string(entries[4])).decode()
         return account_name, description, password
