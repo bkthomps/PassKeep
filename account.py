@@ -27,10 +27,10 @@ def signup(username, password, confirm_password):
     entries = connection.query("SELECT username, COUNT(username) FROM account WHERE username = ?", (username,))
     if entries[1]:
         raise AccountException("Username already exists")
-    master_key = unicodedata.normalize('NFKD', password)
+    main_key = unicodedata.normalize('NFKD', password)
     secret_key = utils.generate_secret_key()
-    auth_key, auth_salt = utils.generate_hash(secret_key, master_key)
-    crypt_key, crypt_salt = utils.generate_hash(secret_key, master_key)
+    auth_key, auth_salt = utils.generate_hash(secret_key, main_key)
+    crypt_key, crypt_salt = utils.generate_hash(secret_key, main_key)
     now = datetime.now()
     insert = (username, auth_key, auth_salt, crypt_salt, now, now)
     connection.execute("INSERT INTO account (username, auth_key, auth_salt, crypt_salt, modified, created) "
@@ -50,21 +50,21 @@ class Account:
             raise AccountException("Must fill in fields")
         account = Account(username)
         secret_key = keyring.get_password("bkthomps-passkeep", username)
-        master_key = unicodedata.normalize('NFKD', password)
-        if not secret_key or not account._valid_user(secret_key, master_key):
+        main_key = unicodedata.normalize('NFKD', password)
+        if not secret_key or not account._valid_user(secret_key, main_key):
             raise AccountException("Username or password incorrect")
         return account
 
     def _valid_user(self, secret_key, password):
-        master_key = unicodedata.normalize('NFKD', password)
+        main_key = unicodedata.normalize('NFKD', password)
         statement = "SELECT username, auth_key, auth_salt, crypt_salt, COUNT(*) FROM account WHERE username = ?"
         entries = self._db.query(statement, (self._username,))
         if entries[4] == 0:
             return False
-        auth_key = utils.hash_with_salt(secret_key, master_key, entries[2])
+        auth_key = utils.hash_with_salt(secret_key, main_key, entries[2])
         if auth_key != entries[1]:
             return False
-        self._crypt_key = utils.hash_with_salt(secret_key, master_key, entries[3])
+        self._crypt_key = utils.hash_with_salt(secret_key, main_key, entries[3])
         return True
 
     def add_vault(self, account_name, description, password):

@@ -33,12 +33,12 @@ def test_commutative_key_combination():
 
 
 def test_password_hash():
-    master_key = utils.generate_secret_key()
+    main_key = utils.generate_secret_key()
     secret_key = utils.generate_secret_key()
-    auth_key, auth_salt = utils.generate_hash(secret_key, master_key)
-    assert auth_key != master_key
+    auth_key, auth_salt = utils.generate_hash(secret_key, main_key)
+    assert auth_key != main_key
     assert auth_key != secret_key
-    new_auth_key = utils.hash_with_salt(secret_key, master_key, auth_salt)
+    new_auth_key = utils.hash_with_salt(secret_key, main_key, auth_salt)
     assert new_auth_key == auth_key
 
 
