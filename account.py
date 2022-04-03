@@ -101,7 +101,7 @@ class Account:
         if not entries or entries[0] != self._username:
             raise AccountException("Invalid vault id")
         cipher = AES.new(crypt_bytes, AES.MODE_CBC, iv=entries[1])
-        account_name = cipher.decrypt(utils.byte_string(entries[2])).decode()
-        description = cipher.decrypt(utils.byte_string(entries[3])).decode()
-        password = cipher.decrypt(utils.byte_string(entries[4])).decode()
+        account_name = cipher.decrypt(utils.byte_string(entries[2])).decode().rstrip('\x00')
+        description = cipher.decrypt(utils.byte_string(entries[3])).decode().rstrip('\x00')
+        password = cipher.decrypt(utils.byte_string(entries[4])).decode().rstrip('\x00')
         return account_name, description, password
