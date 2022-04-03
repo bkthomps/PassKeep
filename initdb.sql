@@ -15,13 +15,13 @@ CREATE TABLE account (
 );
 
 CREATE TABLE vault (
-    id           INTEGER PRIMARY KEY AUTOINCREMENT,
-    iv           VARCHAR(25)  NOT NULL,
-    username     VARCHAR(50)  NOT NULL,
-    account_name VARCHAR(250) NOT NULL,
-    description  VARCHAR(500) NOT NULL,
-    password     VARCHAR(250) NOT NULL,
-    modified     DATETIME     NOT NULL,
-    created      DATETIME     NOT NULL,
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    iv          VARCHAR(25)  NOT NULL,
+    username    VARCHAR(50)  NOT NULL,
+    vault_name  VARCHAR(50)  NOT NULL,
+    description VARCHAR(500) NOT NULL,
+    password    VARCHAR(250) NOT NULL,
+    modified    DATETIME     NOT NULL,
+    created     DATETIME     NOT NULL,
     FOREIGN KEY (username) REFERENCES account (username) ON DELETE CASCADE
 );

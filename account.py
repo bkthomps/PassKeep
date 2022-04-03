@@ -67,41 +67,41 @@ class Account:
         self._crypt_key = utils.hash_with_salt(secret_key, main_key, entries[3])
         return True
 
-    def add_vault(self, account_name, description, password):
+    def add_vault(self, vault_name, description, password):
         crypt_bytes = utils.byte_string(self._crypt_key)
-        account_name_bytes = utils.zero_pad(account_name).encode()
+        vault_name_bytes = utils.zero_pad(vault_name).encode()
         description_bytes = utils.zero_pad(description).encode()
         password_bytes = utils.zero_pad(password).encode()
         cipher = AES.new(crypt_bytes, AES.MODE_CBC)
         iv = cipher.IV
-        encrypted_account_name = utils.base64_string(cipher.encrypt(account_name_bytes))
+        encrypted_vault_name = utils.base64_string(cipher.encrypt(vault_name_bytes))
         encrypted_description = utils.base64_string(cipher.encrypt(description_bytes))
         encrypted_password = utils.base64_string(cipher.encrypt(password_bytes))
         now = datetime.now()
-        insert = (iv, self._username, encrypted_account_name, encrypted_description, encrypted_password, now, now)
-        self._db.execute("INSERT INTO vault (iv, username, account_name, description, password, modified, created) "
+        insert = (iv, self._username, encrypted_vault_name, encrypted_description, encrypted_password, now, now)
+        self._db.execute("INSERT INTO vault (iv, username, vault_name, description, password, modified, created) "
                          "VALUES (?, ?, ?, ?, ?, ?, ?)", insert)
 
     def get_vaults(self):
         crypt_bytes = utils.byte_string(self._crypt_key)
-        statement = "SELECT id, iv, account_name FROM vault WHERE username = ?"
+        statement = "SELECT id, iv, vault_name FROM vault WHERE username = ?"
         rows = self._db.query_all(statement, (self._username,))
         vaults = []
         for row in rows:
             vault_id = row[0]
             cipher = AES.new(crypt_bytes, AES.MODE_CBC, iv=row[1])
-            account_name = utils.byte_to_str(cipher.decrypt(utils.byte_string(row[2])))
-            vaults.append((vault_id, account_name))
+            vault_name = utils.byte_to_str(cipher.decrypt(utils.byte_string(row[2])))
+            vaults.append((vault_id, vault_name))
         return vaults
 
     def get_vault(self, vault_id):
         crypt_bytes = utils.byte_string(self._crypt_key)
-        statement = "SELECT username, iv, account_name, description, password FROM vault WHERE id = ?"
+        statement = "SELECT username, iv, vault_name, description, password FROM vault WHERE id = ?"
         entries = self._db.query(statement, (vault_id,))
         if not entries or entries[0] != self._username:
             raise AccountException("Invalid vault id")
         cipher = AES.new(crypt_bytes, AES.MODE_CBC, iv=entries[1])
-        account_name = cipher.decrypt(utils.byte_string(entries[2])).decode().rstrip('\x00')
+        vault_name = cipher.decrypt(utils.byte_string(entries[2])).decode().rstrip('\x00')
         description = cipher.decrypt(utils.byte_string(entries[3])).decode().rstrip('\x00')
         password = cipher.decrypt(utils.byte_string(entries[4])).decode().rstrip('\x00')
-        return account_name, description, password
+        return vault_name, description, password
