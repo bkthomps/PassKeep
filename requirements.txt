@@ -1,4 +1,5 @@
-keyring >= 21.2.1
-pycryptodome >= 3.9.8
-passlib >= 1.7.2
+keyring >= 23.5.0
+pycryptodome >= 3.14.1
+passlib >= 1.7.4
 pyperclip >= 1.8.2
+pytest >= 7.1.1
