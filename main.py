@@ -5,6 +5,7 @@ import pyperclip
 
 from account import Account
 from account import AccountException
+from account import signup as account_signup
 
 
 def signup(args):
@@ -12,7 +13,7 @@ def signup(args):
     password = getpass.getpass('Password:')
     confirm_password = getpass.getpass('Confirm Password:')
     try:
-        Account.signup(username, password, confirm_password)
+        account_signup(username, password, confirm_password)
     except AccountException as e:
         print('Error: ' + str(e))
 
