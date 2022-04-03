@@ -1,0 +1,9 @@
+name: build
+on: [push]
+jobs:
+  debug:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - run: make
+    - run: pytest tests.py
