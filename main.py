@@ -6,6 +6,7 @@ import pyperclip
 from account import Account
 from account import AccountException
 from account import signup as account_signup
+from connection import is_password_leaked
 
 
 def signup(args):
@@ -51,9 +52,11 @@ def get_vault(args):
 def add_vault(args):
     try:
         account = _login(args)
-        description = input("Vault Description:")
+        description = input('Vault Description:')
         password = getpass.getpass('Vault Password:')
         account.add_vault(args.name, description, password)
+        if is_password_leaked(password):
+            print('Warning: Password is part of a public data leak, consider changing it')
     except AccountException as e:
         print('Error: ' + str(e))
 
@@ -86,7 +89,7 @@ if __name__ == '__main__':
     parser_add_vault.set_defaults(func=add_vault)
 
     arguments = parser.parse_args()
-    if getattr(arguments, "func", None):
+    if getattr(arguments, 'func', None):
         arguments.func(arguments)
     else:
         print('Not a valid argument')

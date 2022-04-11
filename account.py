@@ -1,11 +1,12 @@
 import unicodedata
+import utils
 from datetime import datetime
 
 import keyring
 from Crypto.Cipher import AES
 
 from connection import Connection
-import utils
+from connection import is_password_leaked
 
 
 class AccountException(Exception):
@@ -23,6 +24,8 @@ def signup(username, password, confirm_password):
         raise AccountException("Password must be at least 8 characters")
     if password == username:
         raise AccountException("Password must not equal username")
+    if is_password_leaked(password):
+        raise AccountException("Password is present in a public data leak")
     connection = Connection(username)
     entries = connection.query("SELECT username, COUNT(username) FROM account WHERE username = ?", (username,))
     if entries[1]:

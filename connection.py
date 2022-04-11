@@ -1,6 +1,15 @@
 import sqlite3
 
 
+def is_password_leaked(password):
+    db = sqlite3.connect("leaked_passwords.db")
+    c = db.cursor()
+    c.execute("SELECT password FROM leaked_passwords WHERE password = ?", (password,))
+    entries = c.fetchone()
+    c.close()
+    return bool(entries)
+
+
 class Connection:
     def __init__(self, username):
         self._username = username
