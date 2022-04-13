@@ -1,7 +1,9 @@
+import hashlib
 import sqlite3
 
 
 def is_password_leaked(password):
+    password = hashlib.sha1(password.encode('utf-8')).hexdigest().upper()
     db = sqlite3.connect("leaked_passwords.db")
     c = db.cursor()
     c.execute("SELECT password FROM leaked_passwords WHERE password = ?", (password,))
