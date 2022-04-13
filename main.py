@@ -1,5 +1,7 @@
 import argparse
 import getpass
+import secrets
+import string
 
 import pyperclip
 
@@ -61,6 +63,34 @@ def add_vault(args):
         print('Error: ' + str(e))
 
 
+def generate(args):
+    max_length = 250
+    if args.length <= 0:
+        print('Error: length must be a positive integer')
+        return
+    if args.length > max_length:
+        print('Error: max password length is {} characters'.format(max_length))
+        return
+    characters = ''
+    if not args.no_special:
+        characters += string.punctuation
+    if not args.no_digit:
+        characters += string.digits
+    if not args.no_upper:
+        characters += string.ascii_uppercase
+    if not args.no_lower:
+        characters += string.ascii_lowercase
+    if not characters:
+        print('Error: no characters in permitted set')
+        return
+    password = ''
+    for i in range(args.length):
+        random_index = secrets.randbelow(len(characters))
+        password += characters[random_index]
+    print('The password has been copied to your clipboard.')
+    pyperclip.copy(password)
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(prog='pk',
                                      usage='%(prog)s [options] path',
@@ -87,6 +117,14 @@ if __name__ == '__main__':
     parser_add_vault.add_argument('--username', '-u', type=str, required=True)
     parser_add_vault.add_argument('--name', '-n', type=str, required=True)
     parser_add_vault.set_defaults(func=add_vault)
+
+    parser_generate = subparsers.add_parser('gen', help='Generate a password.')
+    parser_generate.add_argument('--length', '-l', type=int, default=25)
+    parser_generate.add_argument('--no-special', action='store_true')
+    parser_generate.add_argument('--no-digit', action='store_true')
+    parser_generate.add_argument('--no-upper', action='store_true')
+    parser_generate.add_argument('--no-lower', action='store_true')
+    parser_generate.set_defaults(func=generate)
 
     arguments = parser.parse_args()
     if getattr(arguments, 'func', None):
