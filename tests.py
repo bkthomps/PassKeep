@@ -198,3 +198,91 @@ def test_entropy_diceware_passwords():
     assert round(_entropy('cinema.igloo.concept.porridge.virtual'), 1) == 64.6
     assert round(_entropy('sadly.gotten.bonnet.breezy.mulberry.scorch'), 1) == 77.5
     assert round(_entropy('lather-busybody'), 1) == 25.8
+
+
+def test_delete_vault():
+    account_1, user_1, pass_1 = _login()
+    n1, d1, p1 = _random(), _random(), _random()
+    n2, d2, p2 = _random(), _random(), _random()
+    account_1.add_vault(n1, d1, p1)
+    account_1.add_vault(n2, d2, p2)
+    assert len(account_1.get_vaults()) == 2
+    (vault_id, _, _, _, _) = account_1.get_vault_id(n1)
+    account_1.delete_vault(vault_id)
+    assert len(account_1.get_vaults()) == 1
+    with pytest.raises(AccountException):
+        account_1.get_vault_id(n1)
+    (vault_id, _, _, _, _) = account_1.get_vault_id(n2)
+    account_1.delete_vault(vault_id)
+    assert len(account_1.get_vaults()) == 0
+    with pytest.raises(AccountException):
+        account_1.get_vault_id(n2)
+
+
+def test_edit_vault_name():
+    account_1, user_1, pass_1 = _login()
+    n1, d1, p1 = _random(), _random(), _random()
+    n2, d2, p2 = _random(), _random(), _random()
+    account_1.add_vault(n1, d1, p1)
+    assert len(account_1.get_vaults()) == 1
+    vault = account_1.get_vaults()[0]
+    vault_name = vault[0]
+    (vault_id, iv, old_n, old_d, old_p) = account_1.get_vault_id(vault_name)
+    (description, password) = account_1.get_vault(vault)
+    assert vault_name == n1
+    assert description == d1
+    assert password == p1
+    account_1.edit_vault(vault_id, iv, n2, old_d, old_p)
+    assert len(account_1.get_vaults()) == 1
+    vault = account_1.get_vaults()[0]
+    vault_name = vault[0]
+    (description, password) = account_1.get_vault(vault)
+    assert vault_name == n2
+    assert description == d1
+    assert password == p1
+
+
+def test_edit_vault_description():
+    account_1, user_1, pass_1 = _login()
+    n1, d1, p1 = _random(), _random(), _random()
+    n2, d2, p2 = _random(), _random(), _random()
+    account_1.add_vault(n1, d1, p1)
+    assert len(account_1.get_vaults()) == 1
+    vault = account_1.get_vaults()[0]
+    vault_name = vault[0]
+    (vault_id, iv, old_n, old_d, old_p) = account_1.get_vault_id(vault_name)
+    (description, password) = account_1.get_vault(vault)
+    assert vault_name == n1
+    assert description == d1
+    assert password == p1
+    account_1.edit_vault(vault_id, iv, old_n, d2, old_p)
+    assert len(account_1.get_vaults()) == 1
+    vault = account_1.get_vaults()[0]
+    vault_name = vault[0]
+    (description, password) = account_1.get_vault(vault)
+    assert vault_name == n1
+    assert description == d2
+    assert password == p1
+
+
+def test_edit_vault_password():
+    account_1, user_1, pass_1 = _login()
+    n1, d1, p1 = _random(), _random(), _random()
+    n2, d2, p2 = _random(), _random(), _random()
+    account_1.add_vault(n1, d1, p1)
+    assert len(account_1.get_vaults()) == 1
+    vault = account_1.get_vaults()[0]
+    vault_name = vault[0]
+    (vault_id, iv, old_n, old_d, old_p) = account_1.get_vault_id(vault_name)
+    (description, password) = account_1.get_vault(vault)
+    assert vault_name == n1
+    assert description == d1
+    assert password == p1
+    account_1.edit_vault(vault_id, iv, old_n, old_d, p2)
+    assert len(account_1.get_vaults()) == 1
+    vault = account_1.get_vaults()[0]
+    vault_name = vault[0]
+    (description, password) = account_1.get_vault(vault)
+    assert vault_name == n1
+    assert description == d1
+    assert password == p2

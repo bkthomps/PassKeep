@@ -1,6 +1,7 @@
 import argparse
 import getpass
 import math
+import random
 import secrets
 import string
 import pyperclip
@@ -62,6 +63,44 @@ def add_vault(args):
     password = getpass.getpass('Vault Password:')
     account.add_vault(args.name, description, password)
     if is_password_leaked(password):
+        print('Warning: Password is part of a public data leak, consider changing it')
+
+
+def _confirm(text):
+    number = random.randint(100, 999)
+    print('To confirm {}, enter {}'.format(text, number))
+    confirm = input('Confirmation:')
+    if str(number) != confirm:
+        raise InputException('input does not match confirmation')
+
+
+def delete_vault(args):
+    account = _login(args)
+    (vault_id, _, _, _, _) = account.get_vault_id(args.name)
+    _confirm('deletion of vault "{}"'.format(args.name))
+    account.delete_vault(vault_id)
+
+
+def edit_vault_name(args):
+    account = _login(args)
+    (vault_id, iv, old_name, old_description, old_password) = account.get_vault_id(args.name)
+    vault_name = input('New Vault Name:')
+    account.edit_vault_name(vault_id, iv, vault_name, old_description, old_password)
+
+
+def edit_vault_description(args):
+    account = _login(args)
+    (vault_id, iv, old_name, old_description, old_password) = account.get_vault_id(args.name)
+    description = input('New Description:')
+    account.edit_vault_description(vault_id, iv, old_name, description, old_password)
+
+
+def edit_vault_password(args):
+    account = _login(args)
+    (vault_id, iv, old_name, old_description, old_password) = account.get_vault_id(args.name)
+    vault_password = getpass.getpass('New Vault Password:')
+    account.edit_vault_password(vault_id, iv, old_name, old_description, vault_password)
+    if is_password_leaked(vault_password):
         print('Warning: Password is part of a public data leak, consider changing it')
 
 
@@ -196,6 +235,29 @@ if __name__ == '__main__':
     parser_add_vault.add_argument('--username', '-u', type=str, required=True)
     parser_add_vault.add_argument('--name', '-n', type=str, required=True)
     parser_add_vault.set_defaults(func=add_vault)
+
+    parser_delete_vault = parser_vault_subparsers.add_parser('delete', help='Delete an existing vault.')
+    parser_delete_vault.add_argument('--username', '-u', type=str, required=True)
+    parser_delete_vault.add_argument('--name', '-n', type=str, required=True)
+    parser_delete_vault.set_defaults(func=delete_vault)
+
+    parser_edit_vault = parser_vault_subparsers.add_parser('edit', help='Edit an existing vault.')
+    parser_edit_vault_subparsers = parser_edit_vault.add_subparsers()
+
+    parser_edit_vault_name = parser_edit_vault_subparsers.add_parser('name', help='Edit the name of a vault.')
+    parser_edit_vault_name.add_argument('--username', '-u', type=str, required=True)
+    parser_edit_vault_name.add_argument('--name', '-n', type=str, required=True)
+    parser_edit_vault_name.set_defaults(func=edit_vault_name)
+
+    parser_edit_vault_desc = parser_edit_vault_subparsers.add_parser('desc', help='Edit the description of a vault.')
+    parser_edit_vault_desc.add_argument('--username', '-u', type=str, required=True)
+    parser_edit_vault_desc.add_argument('--name', '-n', type=str, required=True)
+    parser_edit_vault_desc.set_defaults(func=edit_vault_description)
+
+    parser_edit_vault_pass = parser_edit_vault_subparsers.add_parser('password', help='Edit the password of a vault.')
+    parser_edit_vault_pass.add_argument('--username', '-u', type=str, required=True)
+    parser_edit_vault_pass.add_argument('--name', '-n', type=str, required=True)
+    parser_edit_vault_pass.set_defaults(func=edit_vault_password)
 
     parser_generate = subparsers.add_parser('gen', help='Randomly generate a password.')
     parser_generate.add_argument('--length', '-l', type=int, default=25)
