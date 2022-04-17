@@ -312,17 +312,11 @@ def test_edit_username():
 
 
 def test_edit_password():
-    try:
-        account, username, password = _login()
-        with pytest.raises(AccountException):
-            account.edit_password(password, password)
-        new_password = _random()
-        with pytest.raises(AccountException):
-            account.edit_password(password, new_password)
-        account.edit_password(new_password, new_password)
-        with pytest.raises(AccountException):
-            Account.login(username, password)
-        Account.login(username, new_password)
-    except NotImplementedError:
-        # TODO: uncomment this
-        pass
+    account, username, password = _login()
+    new_password = _random()
+    with pytest.raises(AccountException):
+        account.edit_password(password, new_password)
+    account.edit_password(new_password, new_password)
+    with pytest.raises(AccountException):
+        Account.login(username, password)
+    Account.login(username, new_password)

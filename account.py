@@ -97,7 +97,24 @@ class Account:
             raise AccountException('password must not equal username')
         if is_password_leaked(password):
             raise AccountException('password is present in a public data leak')
-        raise NotImplementedError('Not implemented')
+        main_key = unicodedata.normalize('NFKD', password)
+        secret_key = keyring.get_password(KEYRING_KEY, self._username)
+        auth_key, auth_salt = utils.generate_hash(secret_key, main_key)
+        self._crypt_key, crypt_salt = utils.generate_hash(secret_key, main_key)
+        statement = 'UPDATE account SET auth_key = ?, auth_salt = ?, crypt_salt = ? WHERE username = ?'
+        self._db.execute(statement, (auth_key, auth_salt, crypt_salt, self._username))
+        self._update_vaults()
+
+    def _update_vaults(self):
+        crypt_bytes = utils.byte_string(self._crypt_key)
+        statement = 'SELECT id, iv, vault_name, description, password FROM vault WHERE username = ?'
+        rows = self._db.query_all(statement, (self._username,))
+        for row in rows:
+            cipher = AES.new(crypt_bytes, AES.MODE_CBC, iv=row[1])
+            vault_name = utils.byte_to_str(cipher.decrypt(utils.byte_string(row[2])))
+            description = utils.byte_to_str(cipher.decrypt(utils.byte_string(row[3])))
+            password = utils.byte_to_str(cipher.decrypt(utils.byte_string(row[4])))
+            self.edit_vault(row[0], row[1], vault_name, description, password)
 
     def delete_user(self):
         self._db.execute('DELETE FROM account WHERE username = ?', (self._username,))
