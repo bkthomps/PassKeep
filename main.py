@@ -11,14 +11,15 @@ from account import AccountException
 from connection import is_password_leaked
 
 
+class InputException(Exception):
+    pass
+
+
 def signup(args):
     username = args.username
     password = getpass.getpass('User Password:')
     confirm_password = getpass.getpass('Confirm Password:')
-    try:
-        Account.signup(username, password, confirm_password)
-    except AccountException as e:
-        print('Error: ' + str(e))
+    Account.signup(username, password, confirm_password)
 
 
 def _login(args):
@@ -28,57 +29,46 @@ def _login(args):
 
 
 def vaults(args):
-    try:
-        account = _login(args)
-        account_vaults = account.get_vaults()
-        if len(account_vaults) == 0:
-            print('No vaults associated with this user')
-            return
-        print('The vaults for this user are:')
-        account_vaults.sort(key=lambda x: x[0])
-        for vault in account_vaults:
-            print('  {}'.format(vault[0]))
-    except AccountException as e:
-        print('Error: ' + str(e))
+    account = _login(args)
+    account_vaults = account.get_vaults()
+    if len(account_vaults) == 0:
+        print('No vaults associated with this user')
+        return
+    print('The vaults for this user are:')
+    account_vaults.sort(key=lambda x: x[0])
+    for vault in account_vaults:
+        print('  {}'.format(vault[0]))
 
 
 def get_vault(args):
-    try:
-        account = _login(args)
-        account_vaults = account.get_vaults()
-        for vault_data in account_vaults:
-            if vault_data[0] == args.name:
-                (description, password) = account.get_vault(vault_data)
-                print('Account Name: ' + vault_data[0])
-                print('Description: ' + description)
-                print('The password has been copied to your clipboard.')
-                pyperclip.copy(password)
-                return
-        print('Error: Vault name not found')
-    except AccountException as e:
-        print('Error: ' + str(e))
+    account = _login(args)
+    account_vaults = account.get_vaults()
+    for vault_data in account_vaults:
+        if vault_data[0] == args.name:
+            (description, password) = account.get_vault(vault_data)
+            print('Account Name: ' + vault_data[0])
+            print('Description: ' + description)
+            print('The password has been copied to your clipboard.')
+            pyperclip.copy(password)
+            return
+    raise InputException('vault name not found')
 
 
 def add_vault(args):
-    try:
-        account = _login(args)
-        description = input('Vault Description:')
-        password = getpass.getpass('Vault Password:')
-        account.add_vault(args.name, description, password)
-        if is_password_leaked(password):
-            print('Warning: Password is part of a public data leak, consider changing it')
-    except AccountException as e:
-        print('Error: ' + str(e))
+    account = _login(args)
+    description = input('Vault Description:')
+    password = getpass.getpass('Vault Password:')
+    account.add_vault(args.name, description, password)
+    if is_password_leaked(password):
+        print('Warning: Password is part of a public data leak, consider changing it')
 
 
 def generate(args):
     max_length = 250
     if args.length <= 0:
-        print('Error: length must be a positive integer')
-        return
+        raise InputException('length must be a positive integer')
     if args.length > max_length:
-        print('Error: max password length is {} characters'.format(max_length))
-        return
+        raise InputException('max password length is {} characters'.format(max_length))
     characters = ''
     if not args.no_special:
         characters += string.punctuation
@@ -89,8 +79,7 @@ def generate(args):
     if not args.no_lower:
         characters += string.ascii_lowercase
     if not characters:
-        print('Error: no characters in permitted set')
-        return
+        raise InputException('no characters in permitted set')
     password = ''
     for i in range(args.length):
         random_index = secrets.randbelow(len(characters))
@@ -160,13 +149,17 @@ if __name__ == '__main__':
     parser_add_vault.add_argument('--name', '-n', type=str, required=True)
     parser_add_vault.set_defaults(func=add_vault)
 
-    parser_generate = subparsers.add_parser('gen', help='Generate a password.')
+    parser_generate = subparsers.add_parser('gen', help='Randomly generate a password.')
     parser_generate.add_argument('--length', '-l', type=int, default=25)
     parser_generate.add_argument('--no-special', action='store_true')
     parser_generate.add_argument('--no-digit', action='store_true')
     parser_generate.add_argument('--no-upper', action='store_true')
     parser_generate.add_argument('--no-lower', action='store_true')
     parser_generate.set_defaults(func=generate)
+
+    parser_diceware = subparsers.add_parser('gen', help='Generate a password using the diceware wordlist.')
+    parser_diceware.add_argument('--words', '-w', type=int, default=6)
+    parser_diceware.set_defaults(func=diceware)
 
     parser_strength = subparsers.add_parser('strength', help='Get the strength of a password.')
     parser_strength.set_defaults(func=strength)
@@ -175,6 +168,8 @@ if __name__ == '__main__':
     if getattr(arguments, 'func', None):
         try:
             arguments.func(arguments)
+        except (InputException, AccountException) as e:
+            print('Error: ' + str(e))
         except KeyboardInterrupt:
             pass
     else:

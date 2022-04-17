@@ -5,11 +5,11 @@ from passlib.hash import pbkdf2_sha256
 
 
 def byte_string(_base64_string):
-    return base64.b64decode(_base64_string + "===", b'./')
+    return base64.b64decode(_base64_string + '===', b'./')
 
 
 def base64_string(_byte_string):
-    return base64.b64encode(_byte_string, b'./').decode('utf-8').replace("=", "")
+    return base64.b64encode(_byte_string, b'./').decode('utf-8').replace('=', '')
 
 
 def generate_secret_key():
@@ -19,8 +19,8 @@ def generate_secret_key():
 
 def generate_hash(secret_key, main_key):
     pair = pbkdf2_sha256.using(rounds=250000, salt_size=32).hash(main_key)
-    salt = pair.split("$")[3]
-    hashed = pair.split("$")[4]
+    salt = pair.split('$')[3]
+    hashed = pair.split('$')[4]
     key = combine_keys(secret_key, hashed)
     return key, salt
 
@@ -37,7 +37,7 @@ def combine_keys(secret_key, main_key):
 def hash_with_salt(secret_key, main_key, salt):
     salt_bytes = byte_string(salt)
     pair = pbkdf2_sha256.using(rounds=250000, salt=salt_bytes).hash(main_key)
-    return combine_keys(secret_key, pair.split("$")[4])
+    return combine_keys(secret_key, pair.split('$')[4])
 
 
 def zero_pad(string):
@@ -45,4 +45,4 @@ def zero_pad(string):
 
 
 def byte_to_str(byte):
-    return str(byte)[2:][:-1].split("\\x00", 1)[0]
+    return str(byte)[2:][:-1].split('\\x00', 1)[0]
