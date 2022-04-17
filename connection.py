@@ -1,4 +1,5 @@
 import hashlib
+import secrets
 import sqlite3
 
 
@@ -10,6 +11,34 @@ def is_password_leaked(password):
     entries = c.fetchone()
     c.close()
     return bool(entries)
+
+
+def is_diceware_word(word):
+    db = sqlite3.connect('diceware.db')
+    c = db.cursor()
+    c.execute('SELECT word FROM diceware WHERE word = ?', (word,))
+    entries = c.fetchone()
+    c.close()
+    return bool(entries)
+
+
+def get_random_diceware():
+    random_id = 1 + secrets.randbelow(diceware_list_size())
+    db = sqlite3.connect('diceware.db')
+    c = db.cursor()
+    c.execute('SELECT word FROM diceware WHERE id = ?', (random_id,))
+    entries = c.fetchone()
+    c.close()
+    return entries[0]
+
+
+def diceware_list_size():
+    db = sqlite3.connect('diceware.db')
+    c = db.cursor()
+    c.execute('SELECT COUNT(word) FROM diceware')
+    entries = c.fetchone()
+    c.close()
+    return entries[0]
 
 
 class Connection:

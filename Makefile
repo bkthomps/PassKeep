@@ -12,6 +12,11 @@ create_passwords_db:
 	mkdir dir
 	tar cvzf - leaked_passwords.db | split -b 40m - dir/leaked_passwords.tar.gz.
 
+create_diceware_db:
+	rm -f diceware.db
+	sqlite3 diceware.db < initdb_diceware.sql
+	python3 populate_diceware.py
+
 extract_passwords_db:
 	cat dir/leaked_passwords.tar.gz.* | tar xzvf -
 

@@ -3,12 +3,12 @@ import getpass
 import math
 import secrets
 import string
-
 import pyperclip
 
 from account import Account
 from account import AccountException
 from connection import is_password_leaked
+from connection import get_random_diceware
 
 
 class InputException(Exception):
@@ -84,7 +84,23 @@ def generate(args):
     for i in range(args.length):
         random_index = secrets.randbelow(len(characters))
         password += characters[random_index]
-    print('The password has been copied to your clipboard.')
+    print('The random password has been copied to your clipboard.')
+    pyperclip.copy(password)
+
+
+def diceware(args):
+    max_words = 12
+    if args.words <= 0:
+        raise InputException('words must be a positive integer')
+    if args.words > max_words:
+        raise InputException('max words length is {} words'.format(max_words))
+    if args.separator not in string.punctuation:
+        raise InputException('separator is not a special character')
+    words = []
+    for _ in range(args.words):
+        words.append(get_random_diceware())
+    password = args.separator.join(words)
+    print('The diceware password has been copied to your clipboard.')
     pyperclip.copy(password)
 
 
@@ -157,8 +173,9 @@ if __name__ == '__main__':
     parser_generate.add_argument('--no-lower', action='store_true')
     parser_generate.set_defaults(func=generate)
 
-    parser_diceware = subparsers.add_parser('gen', help='Generate a password using the diceware wordlist.')
+    parser_diceware = subparsers.add_parser('dice', help='Generate a password using the diceware wordlist.')
     parser_diceware.add_argument('--words', '-w', type=int, default=6)
+    parser_diceware.add_argument('--separator', '-sep', type=str, default='.')
     parser_diceware.set_defaults(func=diceware)
 
     parser_strength = subparsers.add_parser('strength', help='Get the strength of a password.')
