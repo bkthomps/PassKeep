@@ -6,6 +6,7 @@ import utils
 
 from account import Account
 from account import AccountException
+from main import _entropy
 
 
 def _random(length=8):
@@ -173,3 +174,18 @@ def test_double_add_vault_different_name():
     account_1.add_vault(n2, d1, p1)
     vaults_1 = account_1.get_vaults()
     assert len(vaults_1) == 2
+
+
+def test_entropy_random_passwords():
+    assert round(_entropy(''), 1) == 0.0
+    assert round(_entropy('[-tyZ'), 1) == 32.0
+    assert round(_entropy('m2`?9KzLA,'), 1) == 65.5
+    assert round(_entropy('f75^aD<:V[sY4;$'), 1) == 98.3
+    assert round(_entropy('"[Ma]|Gx?,tIR2x^3JSA'), 1) == 131.1
+    assert round(_entropy('6@g|PtLfs2)/8^vZDOU#]QDB.'), 1) == 163.9
+    assert round(_entropy('scn7f19lms'), 1) == 51.7
+    assert round(_entropy('WCtlxJrlyu'), 1) == 57.0
+    assert round(_entropy('9IvklHqK4Y'), 1) == 59.5
+    assert round(_entropy('bhclepcjqs'), 1) == 47.0
+    assert round(_entropy('862575'), 1) == 19.9
+    assert round(_entropy('5149'), 1) == 13.3

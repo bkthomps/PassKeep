@@ -1,5 +1,6 @@
 import argparse
 import getpass
+import math
 import secrets
 import string
 
@@ -98,6 +99,40 @@ def generate(args):
     pyperclip.copy(password)
 
 
+def strength(args):
+    password = getpass.getpass('Password:')
+    entropy = _entropy(password)
+    print('Your password has an entropy of {:.2f}'.format(entropy))
+    if entropy < 25:
+        print('This is a very weak password')
+    elif entropy < 50:
+        print('This is a weak password')
+    elif entropy < 75:
+        print('This is a reasonable password')
+    elif entropy < 100:
+        print('This is a strong password')
+    else:
+        print('This is a very strong password')
+
+
+def _entropy(password):
+    character_sets = [string.ascii_lowercase, string.ascii_uppercase, string.digits, string.punctuation]
+    all_characters = ''.join(character_sets)
+    used = set()
+    char_set_size = 0
+    for c in password:
+        if c in all_characters:
+            for char_set in character_sets:
+                if c in char_set and char_set not in used:
+                    char_set_size += len(char_set)
+                    used.add(char_set)
+            continue
+        if c not in used:
+            char_set_size += 1
+            used.add(c)
+    return math.log2(char_set_size ** len(password))
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(prog='pk',
                                      usage='%(prog)s [options] path',
@@ -133,8 +168,14 @@ if __name__ == '__main__':
     parser_generate.add_argument('--no-lower', action='store_true')
     parser_generate.set_defaults(func=generate)
 
+    parser_strength = subparsers.add_parser('strength', help='Get the strength of a password.')
+    parser_strength.set_defaults(func=strength)
+
     arguments = parser.parse_args()
     if getattr(arguments, 'func', None):
-        arguments.func(arguments)
+        try:
+            arguments.func(arguments)
+        except KeyboardInterrupt:
+            pass
     else:
         parser.print_help()

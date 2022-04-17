@@ -14,3 +14,6 @@ create_passwords_db:
 
 extract_passwords_db:
 	cat dir/leaked_passwords.tar.gz.* | tar xzvf -
+
+test:
+	pytest tests.py
