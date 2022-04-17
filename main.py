@@ -7,6 +7,8 @@ import pyperclip
 
 from account import Account
 from account import AccountException
+from connection import diceware_list_size
+from connection import is_diceware_word
 from connection import is_password_leaked
 from connection import get_random_diceware
 
@@ -107,7 +109,6 @@ def diceware(args):
 def strength(args):
     password = getpass.getpass('Password:')
     entropy = _entropy(password)
-    print('Your password has an entropy of {:.2f}'.format(entropy))
     if entropy < 25:
         print('This is a very weak password')
     elif entropy < 50:
@@ -121,6 +122,37 @@ def strength(args):
 
 
 def _entropy(password):
+    (is_diceware, size) = _is_diceware(password)
+    if is_diceware:
+        entropy = _entropy_diceware(size)
+        print('This diceware password has an entropy of {:.2f}'.format(entropy))
+    else:
+        entropy = _entropy_random(password)
+        print('If this password is randomly-generated, it has an entropy of {:.2f}'.format(entropy))
+    return entropy
+
+
+def _is_diceware(password):
+    delimiter = None
+    for c in password:
+        if c in string.punctuation:
+            if delimiter and delimiter != c:
+                return False, 0
+            delimiter = c
+    if not delimiter:
+        return False, 0
+    words = password.split(delimiter)
+    for word in words:
+        if not is_diceware_word(word):
+            return False, 0
+    return True, len(words)
+
+
+def _entropy_diceware(size):
+    return math.log2(diceware_list_size() ** size)
+
+
+def _entropy_random(password):
     character_sets = [string.ascii_lowercase, string.ascii_uppercase, string.digits, string.punctuation]
     all_characters = ''.join(character_sets)
     used = set()

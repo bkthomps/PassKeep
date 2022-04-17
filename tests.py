@@ -189,3 +189,12 @@ def test_entropy_random_passwords():
     assert round(_entropy('bhclepcjqs'), 1) == 47.0
     assert round(_entropy('862575'), 1) == 19.9
     assert round(_entropy('5149'), 1) == 13.3
+
+
+def test_entropy_diceware_passwords():
+    assert round(_entropy('lather.busybody'), 1) == 25.8
+    assert round(_entropy('wisplike.conflict.follow'), 1) == 38.8
+    assert round(_entropy('visible.mobile.aflutter.squint'), 1) == 51.7
+    assert round(_entropy('cinema.igloo.concept.porridge.virtual'), 1) == 64.6
+    assert round(_entropy('sadly.gotten.bonnet.breezy.mulberry.scorch'), 1) == 77.5
+    assert round(_entropy('lather-busybody'), 1) == 25.8
