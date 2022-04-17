@@ -100,13 +100,14 @@ class Account:
         main_key = unicodedata.normalize('NFKD', password)
         secret_key = keyring.get_password(KEYRING_KEY, self._username)
         auth_key, auth_salt = utils.generate_hash(secret_key, main_key)
-        self._crypt_key, crypt_salt = utils.generate_hash(secret_key, main_key)
+        crypt_key, crypt_salt = utils.generate_hash(secret_key, main_key)
         statement = 'UPDATE account SET auth_key = ?, auth_salt = ?, crypt_salt = ? WHERE username = ?'
         self._db.execute(statement, (auth_key, auth_salt, crypt_salt, self._username))
-        self._update_vaults()
+        self._update_vaults(crypt_key)
 
-    def _update_vaults(self):
+    def _update_vaults(self, crypt_key):
         crypt_bytes = utils.byte_string(self._crypt_key)
+        self._crypt_key = crypt_key
         statement = 'SELECT id, iv, vault_name, description, password FROM vault WHERE username = ?'
         rows = self._db.query_all(statement, (self._username,))
         for row in rows:

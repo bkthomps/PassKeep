@@ -300,6 +300,8 @@ def test_delete_user():
 
 def test_edit_username():
     account, username, password = _login()
+    n, d, p = _random(), _random(), _random()
+    account.add_vault(n, d, p)
     with pytest.raises(AccountException):
         Account.signup(username, password, password)
     with pytest.raises(AccountException):
@@ -309,10 +311,19 @@ def test_edit_username():
     with pytest.raises(AccountException):
         Account.signup(new_username, password, password)
     Account.login(new_username, password)
+    assert len(account.get_vaults()) == 1
+    vault = account.get_vaults()[0]
+    vault_name = vault[0]
+    (description, password) = account.get_vault(vault)
+    assert vault_name == n
+    assert description == d
+    assert password == p
 
 
 def test_edit_password():
     account, username, password = _login()
+    n, d, p = _random(), _random(), _random()
+    account.add_vault(n, d, p)
     new_password = _random()
     with pytest.raises(AccountException):
         account.edit_password(password, new_password)
@@ -320,3 +331,10 @@ def test_edit_password():
     with pytest.raises(AccountException):
         Account.login(username, password)
     Account.login(username, new_password)
+    assert len(account.get_vaults()) == 1
+    vault = account.get_vaults()[0]
+    vault_name = vault[0]
+    (description, password) = account.get_vault(vault)
+    assert vault_name == n
+    assert description == d
+    assert password == p

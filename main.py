@@ -249,7 +249,7 @@ if __name__ == '__main__':
     parser_edit_username.add_argument('--username', '-u', type=str, required=True)
     parser_edit_username.set_defaults(func=edit_username)
 
-    parser_edit_password = parser_edit_subparsers.add_parser('username', help='Change the password for a user.')
+    parser_edit_password = parser_edit_subparsers.add_parser('password', help='Change the password for a user.')
     parser_edit_password.add_argument('--username', '-u', type=str, required=True)
     parser_edit_password.set_defaults(func=edit_password)
 
