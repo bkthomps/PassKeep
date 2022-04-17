@@ -4,7 +4,8 @@ import pytest
 
 import utils
 
-import account
+from account import Account
+from account import AccountException
 
 
 def _random(length=8):
@@ -14,8 +15,8 @@ def _random(length=8):
 def _login():
     username = _random()
     password = _random()
-    account.signup(username, password, password)
-    return account.Account.login(username, password), username, password
+    Account.signup(username, password, password)
+    return Account.login(username, password), username, password
 
 
 def test_key_generation_random():
@@ -45,36 +46,36 @@ def test_password_hash():
 def test_signup_and_login():
     user_1 = _random()
     pass_1 = _random()
-    account.signup(user_1, pass_1, pass_1)
-    a = account.Account.login(user_1, pass_1)
+    Account.signup(user_1, pass_1, pass_1)
+    a = Account.login(user_1, pass_1)
     assert a._username == user_1
 
 
 def test_signup_no_username():
     pass_1 = _random()
-    with pytest.raises(account.AccountException):
-        account.signup('', pass_1, pass_1)
+    with pytest.raises(AccountException):
+        Account.signup('', pass_1, pass_1)
 
 
 def test_short_password():
     user_1 = _random()
-    with pytest.raises(account.AccountException):
-        account.signup(user_1, 'pass_1', 'pass_1')
+    with pytest.raises(AccountException):
+        Account.signup(user_1, 'pass_1', 'pass_1')
 
 
 def test_unequal_passwords():
     user_1 = _random()
     pass_1 = _random()
-    with pytest.raises(account.AccountException):
-        account.signup(user_1, pass_1, 'pass_1')
+    with pytest.raises(AccountException):
+        Account.signup(user_1, pass_1, 'pass_1')
 
 
 def test_account_already_exists():
     user_1 = _random()
     pass_1 = _random()
-    account.signup(user_1, pass_1, pass_1)
-    with pytest.raises(account.AccountException):
-        account.signup(user_1, pass_1, pass_1)
+    Account.signup(user_1, pass_1, pass_1)
+    with pytest.raises(AccountException):
+        Account.signup(user_1, pass_1, pass_1)
 
 
 def test_signup_twice():
@@ -82,10 +83,10 @@ def test_signup_twice():
     pass_1 = _random()
     user_2 = _random()
     pass_2 = _random()
-    account.signup(user_1, pass_1, pass_1)
-    account.signup(user_2, pass_2, pass_2)
-    a1 = account.Account.login(user_1, pass_1)
-    a2 = account.Account.login(user_2, pass_2)
+    Account.signup(user_1, pass_1, pass_1)
+    Account.signup(user_2, pass_2, pass_2)
+    a1 = Account.login(user_1, pass_1)
+    a2 = Account.login(user_2, pass_2)
     assert a1._username == user_1
     assert a2._username == user_2
 
@@ -94,9 +95,16 @@ def test_bad_login():
     user_1 = _random()
     pass_1 = _random()
     pass_2 = _random()
-    account.signup(user_1, pass_1, pass_1)
-    with pytest.raises(account.AccountException):
-        account.Account.login(user_1, pass_2)
+    Account.signup(user_1, pass_1, pass_1)
+    with pytest.raises(AccountException):
+        Account.login(user_1, pass_2)
+
+
+def test_leaked_password():
+    username = _random()
+    password = 'password'
+    with pytest.raises(AccountException):
+        Account.signup(username, password, password)
 
 
 def test_no_vaults():
@@ -113,41 +121,55 @@ def test_get_vaults():
     account_1.add_vault(n2, d2, p2)
     vaults = account_1.get_vaults()
     assert len(vaults) == 2
-    name_1, desc_1, vault_pass_1 = account_1.get_vault(vaults[0][0])
-    assert name_1 == n1
-    assert desc_1 == d1
-    assert vault_pass_1 == p1
-    name_2, desc_2, vault_pass_2 = account_1.get_vault(vaults[1][0])
-    assert name_2 == n2
-    assert desc_2 == d2
-    assert vault_pass_2 == p2
-    with pytest.raises(account.AccountException):
-        account_1.get_vault(0)
+    if vaults[0][0] != n1:
+        vaults[0], vaults[1] = vaults[1], vaults[0]
+    assert vaults[0][0] == n1
+    assert vaults[1][0] == n2
+    vault_1 = account_1.get_vault(vaults[0])
+    assert vault_1[0] == d1
+    assert vault_1[1] == p1
+    vault_2 = account_1.get_vault(vaults[1])
+    assert vault_2[0] == d2
+    assert vault_2[1] == p2
 
 
 def test_get_vault_multi_user():
-    a, u, p = _login()
+    account_1, user_1, pass_1 = _login()
+    account_2, user_2, pass_2 = _login()
     n1, d1, p1 = _random(), _random(), _random()
     n2, d2, p2 = _random(), _random(), _random()
-    a.add_vault(n1, d1, p1)
-    vault_1_id = a.get_vaults()[0][0]
-    a, u, p = _login()
-    a.add_vault(n2, d2, p2)
-    vault_2_id = a.get_vaults()[0][0]
-    name_2, desc_2, vault_pass_2 = a.get_vault(vault_2_id)
-    assert name_2 == n2
-    assert desc_2 == d2
-    assert vault_pass_2 == p2
-    with pytest.raises(account.AccountException):
-        a.get_vault(vault_1_id)
+    account_1.add_vault(n1, d1, p1)
+    account_2.add_vault(n2, d2, p2)
+    vaults_1 = account_1.get_vaults()
+    vaults_2 = account_2.get_vaults()
+    assert len(vaults_1) == 1
+    assert len(vaults_2) == 1
+    assert vaults_1[0][0] == n1
+    assert vaults_2[0][0] == n2
+    vault_1 = account_1.get_vault(vaults_1[0])
+    assert vault_1[0] == d1
+    assert vault_1[1] == p1
+    vault_2 = account_1.get_vault(vaults_2[0])
+    assert vault_2[0] == d2
+    assert vault_2[1] == p2
 
 
-def test_get_vault_multi_user_hack():
-    a, u1, p = _login()
+def test_double_add_vault_repeat_name():
+    account_1, user_1, pass_1 = _login()
     n1, d1, p1 = _random(), _random(), _random()
-    a.add_vault(n1, d1, p1)
-    vault_1_id = a.get_vaults()[0][0]
-    a, u2, p = _login()
-    a._username = u1
-    with pytest.raises(UnicodeDecodeError):
-        a.get_vault(vault_1_id)
+    n2, d2, p2 = _random(), _random(), _random()
+    account_1.add_vault(n1, d1, p1)
+    with pytest.raises(AccountException):
+        account_1.add_vault(n1, d2, p2)
+    vaults_1 = account_1.get_vaults()
+    assert len(vaults_1) == 1
+
+
+def test_double_add_vault_different_name():
+    account_1, user_1, pass_1 = _login()
+    n1, d1, p1 = _random(), _random(), _random()
+    n2, d2, p2 = _random(), _random(), _random()
+    account_1.add_vault(n1, d1, p1)
+    account_1.add_vault(n2, d1, p1)
+    vaults_1 = account_1.get_vaults()
+    assert len(vaults_1) == 2

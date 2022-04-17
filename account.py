@@ -13,39 +13,39 @@ class AccountException(Exception):
     pass
 
 
-def signup(username, password, confirm_password):
-    if len(username) == 0:
-        raise AccountException("Username must be filled in")
-    if len(username) > 40:
-        raise AccountException("Username must be at most 40 characters")
-    if password != confirm_password:
-        raise AccountException("Password does not match confirmation")
-    if len(password) < 8:
-        raise AccountException("Password must be at least 8 characters")
-    if password == username:
-        raise AccountException("Password must not equal username")
-    if is_password_leaked(password):
-        raise AccountException("Password is present in a public data leak")
-    connection = Connection(username)
-    entries = connection.query("SELECT username, COUNT(username) FROM account WHERE username = ?", (username,))
-    if entries[1]:
-        raise AccountException("Username already exists")
-    main_key = unicodedata.normalize('NFKD', password)
-    secret_key = utils.generate_secret_key()
-    auth_key, auth_salt = utils.generate_hash(secret_key, main_key)
-    crypt_key, crypt_salt = utils.generate_hash(secret_key, main_key)
-    now = datetime.now()
-    insert = (username, auth_key, auth_salt, crypt_salt, now, now)
-    connection.execute("INSERT INTO account (username, auth_key, auth_salt, crypt_salt, modified, created) "
-                       "VALUES (?, ?, ?, ?, ?, ?)", insert)
-    keyring.set_password("bkthomps-passkeep", username, secret_key)
-
-
 class Account:
     def __init__(self, username):
         self._username = username
         self._crypt_key = None
         self._db = Connection(username)
+
+    @staticmethod
+    def signup(username, password, confirm_password):
+        if len(username) == 0:
+            raise AccountException("Username must be filled in")
+        if len(username) > 40:
+            raise AccountException("Username must be at most 40 characters")
+        if password != confirm_password:
+            raise AccountException("Password does not match confirmation")
+        if len(password) < 8:
+            raise AccountException("Password must be at least 8 characters")
+        if password == username:
+            raise AccountException("Password must not equal username")
+        if is_password_leaked(password):
+            raise AccountException("Password is present in a public data leak")
+        connection = Connection(username)
+        entries = connection.query("SELECT username, COUNT(username) FROM account WHERE username = ?", (username,))
+        if entries[1]:
+            raise AccountException("Username already exists")
+        main_key = unicodedata.normalize('NFKD', password)
+        secret_key = utils.generate_secret_key()
+        auth_key, auth_salt = utils.generate_hash(secret_key, main_key)
+        crypt_key, crypt_salt = utils.generate_hash(secret_key, main_key)
+        now = datetime.now()
+        insert = (username, auth_key, auth_salt, crypt_salt, now, now)
+        connection.execute("INSERT INTO account (username, auth_key, auth_salt, crypt_salt, modified, created) "
+                           "VALUES (?, ?, ?, ?, ?, ?)", insert)
+        keyring.set_password("bkthomps-passkeep", username, secret_key)
 
     @staticmethod
     def login(username, password):
@@ -71,6 +71,8 @@ class Account:
         return True
 
     def add_vault(self, vault_name, description, password):
+        if self._does_vault_exist(vault_name):
+            raise AccountException("Vault name already exists for this user")
         crypt_bytes = utils.byte_string(self._crypt_key)
         vault_name_bytes = utils.zero_pad(vault_name).encode()
         description_bytes = utils.zero_pad(description).encode()
@@ -85,26 +87,27 @@ class Account:
         self._db.execute("INSERT INTO vault (iv, username, vault_name, description, password, modified, created) "
                          "VALUES (?, ?, ?, ?, ?, ?, ?)", insert)
 
+    def _does_vault_exist(self, vault_name):
+        vaults = self.get_vaults()
+        for vault in vaults:
+            if vault[0] == vault_name:
+                return True
+        return False
+
     def get_vaults(self):
         crypt_bytes = utils.byte_string(self._crypt_key)
-        statement = "SELECT id, iv, vault_name FROM vault WHERE username = ?"
+        statement = "SELECT iv, vault_name, description, password FROM vault WHERE username = ?"
         rows = self._db.query_all(statement, (self._username,))
         vaults = []
         for row in rows:
-            vault_id = row[0]
-            cipher = AES.new(crypt_bytes, AES.MODE_CBC, iv=row[1])
-            vault_name = utils.byte_to_str(cipher.decrypt(utils.byte_string(row[2])))
-            vaults.append((vault_id, vault_name))
+            cipher = AES.new(crypt_bytes, AES.MODE_CBC, iv=row[0])
+            vault_name = utils.byte_to_str(cipher.decrypt(utils.byte_string(row[1])))
+            vaults.append((vault_name, cipher, row[2], row[3]))
         return vaults
 
-    def get_vault(self, vault_id):
-        crypt_bytes = utils.byte_string(self._crypt_key)
-        statement = "SELECT username, iv, vault_name, description, password FROM vault WHERE id = ?"
-        entries = self._db.query(statement, (vault_id,))
-        if not entries or entries[0] != self._username:
-            raise AccountException("Invalid vault id")
-        cipher = AES.new(crypt_bytes, AES.MODE_CBC, iv=entries[1])
-        vault_name = cipher.decrypt(utils.byte_string(entries[2])).decode().rstrip('\x00')
-        description = cipher.decrypt(utils.byte_string(entries[3])).decode().rstrip('\x00')
-        password = cipher.decrypt(utils.byte_string(entries[4])).decode().rstrip('\x00')
-        return vault_name, description, password
+    @staticmethod
+    def get_vault(vault_data):
+        cipher = vault_data[1]
+        description = utils.byte_to_str(cipher.decrypt(utils.byte_string(vault_data[2])))
+        password = utils.byte_to_str(cipher.decrypt(utils.byte_string(vault_data[3])))
+        return description, password

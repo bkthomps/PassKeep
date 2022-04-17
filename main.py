@@ -7,23 +7,22 @@ import pyperclip
 
 from account import Account
 from account import AccountException
-from account import signup as account_signup
 from connection import is_password_leaked
 
 
 def signup(args):
     username = args.username
-    password = getpass.getpass('Password:')
+    password = getpass.getpass('User Password:')
     confirm_password = getpass.getpass('Confirm Password:')
     try:
-        account_signup(username, password, confirm_password)
+        Account.signup(username, password, confirm_password)
     except AccountException as e:
         print('Error: ' + str(e))
 
 
 def _login(args):
     username = args.username
-    password = getpass.getpass('Password:')
+    password = getpass.getpass('User Password:')
     return Account.login(username, password)
 
 
@@ -33,8 +32,11 @@ def vaults(args):
         account_vaults = account.get_vaults()
         if len(account_vaults) == 0:
             print('No vaults associated with this user')
+            return
+        print('The vaults for this user are:')
+        account_vaults.sort(key=lambda x: x[0])
         for vault in account_vaults:
-            print('Id: {}, Name: {}'.format(vault[0], vault[1]))
+            print('  {}'.format(vault[0]))
     except AccountException as e:
         print('Error: ' + str(e))
 
@@ -42,11 +44,16 @@ def vaults(args):
 def get_vault(args):
     try:
         account = _login(args)
-        vault = account.get_vault(args.id)
-        print('Account Name: ' + vault[0])
-        print('Description: ' + vault[1])
-        print('The password has been copied to your clipboard.')
-        pyperclip.copy(vault[2])
+        account_vaults = account.get_vaults()
+        for vault_data in account_vaults:
+            if vault_data[0] == args.name:
+                (description, password) = account.get_vault(vault_data)
+                print('Account Name: ' + vault_data[0])
+                print('Description: ' + description)
+                print('The password has been copied to your clipboard.')
+                pyperclip.copy(password)
+                return
+        print('Error: Vault name not found')
     except AccountException as e:
         print('Error: ' + str(e))
 
@@ -110,7 +117,7 @@ if __name__ == '__main__':
 
     parser_get_vault = parser_vault_subparsers.add_parser('get', help='Get an existing vault.')
     parser_get_vault.add_argument('--username', '-u', type=str, required=True)
-    parser_get_vault.add_argument('--id', '-i', type=int, required=True)
+    parser_get_vault.add_argument('--name', '-n', type=str, required=True)
     parser_get_vault.set_defaults(func=get_vault)
 
     parser_add_vault = parser_vault_subparsers.add_parser('add', help='Add a new vault.')
@@ -130,4 +137,4 @@ if __name__ == '__main__':
     if getattr(arguments, 'func', None):
         arguments.func(arguments)
     else:
-        print('Not a valid argument')
+        parser.print_help()
