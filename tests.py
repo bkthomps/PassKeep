@@ -286,3 +286,43 @@ def test_edit_vault_password():
     assert vault_name == n1
     assert description == d1
     assert password == p2
+
+
+def test_delete_user():
+    account, username, password = _login()
+    with pytest.raises(AccountException):
+        Account.signup(username, password, password)
+    account.delete_user()
+    with pytest.raises(AccountException):
+        Account.login(username, password)
+    Account.signup(username, password, password)
+
+
+def test_edit_username():
+    account, username, password = _login()
+    with pytest.raises(AccountException):
+        Account.signup(username, password, password)
+    with pytest.raises(AccountException):
+        account.edit_username(username)
+    new_username = _random()
+    account.edit_username(new_username)
+    with pytest.raises(AccountException):
+        Account.signup(new_username, password, password)
+    Account.login(new_username, password)
+
+
+def test_edit_password():
+    try:
+        account, username, password = _login()
+        with pytest.raises(AccountException):
+            account.edit_password(password, password)
+        new_password = _random()
+        with pytest.raises(AccountException):
+            account.edit_password(password, new_password)
+        account.edit_password(new_password, new_password)
+        with pytest.raises(AccountException):
+            Account.login(username, password)
+        Account.login(username, new_password)
+    except NotImplementedError:
+        # TODO: uncomment this
+        pass

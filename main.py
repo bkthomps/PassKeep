@@ -31,6 +31,33 @@ def _login(args):
     return Account.login(username, password)
 
 
+def _confirm(text):
+    number = random.randint(100, 999)
+    print('To confirm {}, enter {}'.format(text, number))
+    confirm = input('Confirmation:')
+    if str(number) != confirm:
+        raise InputException('input does not match confirmation')
+
+
+def edit_username(args):
+    account = _login(args)
+    new_username = input('New Username:')
+    account.edit_username(new_username)
+
+
+def edit_password(args):
+    account = _login(args)
+    password = getpass.getpass('User Password:')
+    confirm_password = getpass.getpass('Confirm Password:')
+    account.edit_password(password, confirm_password)
+
+
+def delete_user(args):
+    account = _login(args)
+    _confirm('deletion of user "{}"'.format(args.name))
+    account.delete_user()
+
+
 def vaults(args):
     account = _login(args)
     account_vaults = account.get_vaults()
@@ -64,14 +91,6 @@ def add_vault(args):
     account.add_vault(args.name, description, password)
     if is_password_leaked(password):
         print('Warning: Password is part of a public data leak, consider changing it')
-
-
-def _confirm(text):
-    number = random.randint(100, 999)
-    print('To confirm {}, enter {}'.format(text, number))
-    confirm = input('Confirmation:')
-    if str(number) != confirm:
-        raise InputException('input does not match confirmation')
 
 
 def delete_vault(args):
@@ -218,6 +237,21 @@ if __name__ == '__main__':
     parser_signup = subparsers.add_parser('signup', help='Create a new account.')
     parser_signup.add_argument('--username', '-u', type=str, required=True)
     parser_signup.set_defaults(func=signup)
+
+    parser_delete = subparsers.add_parser('delete', help='Delete an new account.')
+    parser_delete.add_argument('--username', '-u', type=str, required=True)
+    parser_delete.set_defaults(func=delete_user)
+
+    parser_edit = subparsers.add_parser('edit', help='Edit user information.')
+    parser_edit_subparsers = parser_edit.add_subparsers()
+
+    parser_edit_username = parser_edit_subparsers.add_parser('username', help='Change the username for a user.')
+    parser_edit_username.add_argument('--username', '-u', type=str, required=True)
+    parser_edit_username.set_defaults(func=edit_username)
+
+    parser_edit_password = parser_edit_subparsers.add_parser('username', help='Change the password for a user.')
+    parser_edit_password.add_argument('--username', '-u', type=str, required=True)
+    parser_edit_password.set_defaults(func=edit_password)
 
     parser_vaults = subparsers.add_parser('vaults', help='Access an existing account.')
     parser_vaults.add_argument('--username', '-u', type=str, required=True)

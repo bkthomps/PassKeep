@@ -72,6 +72,37 @@ class Account:
         self._crypt_key = utils.hash_with_salt(secret_key, main_key, entries[3])
         return True
 
+    def edit_username(self, new_username):
+        if new_username == self._username:
+            raise AccountException('this username is the same as the current username')
+        if len(new_username) == 0:
+            raise AccountException('username must be filled in')
+        if len(new_username) > 40:
+            raise AccountException('username must be at most 40 characters')
+        connection = Connection(new_username)
+        entries = connection.query('SELECT username, COUNT(username) FROM account WHERE username = ?', (new_username,))
+        if entries[1]:
+            raise AccountException('username already exists')
+        connection.execute('UPDATE account SET username = ? WHERE username = ?', (new_username, self._username))
+        secret_key = keyring.get_password(KEYRING_KEY, self._username)
+        keyring.set_password(KEYRING_KEY, new_username, secret_key)
+        keyring.delete_password(KEYRING_KEY, self._username)
+
+    def edit_password(self, password, confirm_password):
+        if password != confirm_password:
+            raise AccountException('password does not match confirmation')
+        if len(password) < 8:
+            raise AccountException('password must be at least 8 characters')
+        if password == self._username:
+            raise AccountException('password must not equal username')
+        if is_password_leaked(password):
+            raise AccountException('password is present in a public data leak')
+        raise NotImplementedError('Not implemented')
+
+    def delete_user(self):
+        self._db.execute('DELETE FROM account WHERE username = ?', (self._username,))
+        keyring.delete_password(KEYRING_KEY, self._username)
+
     def add_vault(self, vault_name, description, password):
         if self._does_vault_exist(vault_name):
             raise AccountException('vault name already exists for this user')

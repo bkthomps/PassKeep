@@ -23,5 +23,8 @@ CREATE TABLE vault (
     password    VARCHAR(250) NOT NULL,
     modified    DATETIME     NOT NULL,
     created     DATETIME     NOT NULL,
-    FOREIGN KEY (username) REFERENCES account (username) ON DELETE CASCADE
+    FOREIGN KEY (username)
+        REFERENCES account (username)
+        ON DELETE CASCADE
+        ON UPDATE CASCADE
 );
