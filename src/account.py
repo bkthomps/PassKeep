@@ -17,10 +17,24 @@ class AccountException(Exception):
 
 
 class Account:
-    def __init__(self, username):
+    def __init__(self, username, password):
+        if not username or not password:
+            raise AccountException('must fill in fields')
         self._username = username
         self._db = Connection()
-        self.vaults = None
+        secret_key = keyring.get_password(KEYRING_KEY, self._username)
+        main_key = unicodedata.normalize('NFKD', password)
+        if not secret_key:
+            raise AccountException('secret key configuration error')
+        statement = 'SELECT auth_key, auth_salt, crypt_salt FROM account WHERE username = ?'
+        entries = self._db.query(statement, (self._username,))
+        if not entries:
+            raise AccountException('username incorrect')
+        auth_key = utils.hash_with_salt(secret_key, main_key, entries[1])
+        if auth_key != entries[0]:
+            raise AccountException('password incorrect')
+        crypt_key = utils.hash_with_salt(secret_key, main_key, entries[2])
+        self.vaults = Vaults(self._username, self._db, crypt_key)
 
     @staticmethod
     def _validate_username(username, old_username=None):
@@ -47,8 +61,8 @@ class Account:
         Account._validate_username(username)
         Account._validate_password(password, confirm_password, username)
         connection = Connection()
-        entries = connection.query('SELECT username, COUNT(username) FROM account WHERE username = ?', (username,))
-        if entries[1]:
+        entries = connection.query('SELECT username FROM account WHERE username = ?', (username,))
+        if entries:
             raise AccountException('username already exists')
         main_key = unicodedata.normalize('NFKD', password)
         secret_key = utils.generate_secret_key()
@@ -59,30 +73,6 @@ class Account:
         connection.execute('INSERT INTO account (username, auth_key, auth_salt, crypt_salt, modified, created) '
                            'VALUES (?, ?, ?, ?, ?, ?)', insert)
         keyring.set_password(KEYRING_KEY, username, secret_key)
-
-    @staticmethod
-    def login(username, password):
-        if not username or not password:
-            raise AccountException('must fill in fields')
-        account = Account(username)
-        secret_key = keyring.get_password(KEYRING_KEY, username)
-        main_key = unicodedata.normalize('NFKD', password)
-        if not secret_key or not account._valid_user(secret_key, main_key):
-            raise AccountException('username or password incorrect')
-        return account
-
-    def _valid_user(self, secret_key, password):
-        main_key = unicodedata.normalize('NFKD', password)
-        statement = 'SELECT username, auth_key, auth_salt, crypt_salt, COUNT(*) FROM account WHERE username = ?'
-        entries = self._db.query(statement, (self._username,))
-        if entries[4] == 0:
-            return False
-        auth_key = utils.hash_with_salt(secret_key, main_key, entries[2])
-        if auth_key != entries[1]:
-            return False
-        crypt_key = utils.hash_with_salt(secret_key, main_key, entries[3])
-        self.vaults = Vaults(self._username, self._db, crypt_key)
-        return True
 
     def edit_username(self, new_username):
         self._validate_username(new_username, self._username)

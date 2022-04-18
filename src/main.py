@@ -31,7 +31,7 @@ def signup(args):
 def _login(args):
     username = args.username
     password = getpass.getpass('User Password:')
-    return Account.login(username, password)
+    return Account(username, password)
 
 
 def _confirm(text):

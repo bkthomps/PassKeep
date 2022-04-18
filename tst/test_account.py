@@ -43,14 +43,14 @@ class TestSignup:
 
     def test_signup(self):
         Account.signup(self.username, self.password, self.password)
-        account = Account.login(self.username, self.password)
+        account = Account(self.username, self.password)
         assert account._username == self.username
 
     def test_double_signup(self):
         Account.signup(self.username, self.password, self.password)
         Account.signup(self.other_username, self.other_password, self.other_password)
-        account = Account.login(self.username, self.password)
-        other_account = Account.login(self.other_username, self.other_password)
+        account = Account(self.username, self.password)
+        other_account = Account(self.other_username, self.other_password)
         assert account._username == self.username
         assert other_account._username == self.other_username
 
@@ -62,7 +62,7 @@ class TestSignup:
     def test_bad_login(self):
         Account.signup(self.username, self.password, self.password)
         with pytest.raises(AccountException):
-            Account.login(self.username, self.other_password)
+            Account(self.username, self.other_password)
 
 
 class BaseVault:
@@ -76,11 +76,11 @@ class BaseVault:
         self.username = _random()
         self.password = _random()
         Account.signup(self.username, self.password, self.password)
-        self.account = Account.login(self.username, self.password)
+        self.account = Account(self.username, self.password)
         self.other_username = _random()
         self.other_password = _random()
         Account.signup(self.other_username, self.other_password, self.other_password)
-        self.other_account = Account.login(self.other_username, self.other_password)
+        self.other_account = Account(self.other_username, self.other_password)
         self.vaults = []
 
     def _add_vault(self, account):
@@ -208,7 +208,7 @@ class TestUser(BaseVault):
             Account.signup(self.username, self.password, self.password)
         self.account.delete_user()
         with pytest.raises(AccountException):
-            Account.login(self.username, self.password)
+            Account(self.username, self.password)
         Account.signup(self.username, self.password, self.password)
 
 
@@ -226,7 +226,7 @@ class TestEditUser(BaseVault):
         self.account.edit_username(new_username)
         with pytest.raises(AccountException):
             Account.signup(new_username, self.password, self.password)
-        Account.login(new_username, self.password)
+        Account(new_username, self.password)
 
     def test_edit_password(self):
         self._add_vault(self.account)
@@ -235,8 +235,8 @@ class TestEditUser(BaseVault):
             self.account.edit_password(self.password, new_password)
         self.account.edit_password(new_password, new_password)
         with pytest.raises(AccountException):
-            Account.login(self.username, self.password)
-        Account.login(self.username, new_password)
+            Account(self.username, self.password)
+        Account(self.username, new_password)
 
     def teardown_method(self):
         assert len(self.account.vaults.get_vault_names()) == 1
