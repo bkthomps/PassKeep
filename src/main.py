@@ -63,11 +63,12 @@ def delete_user(args):
 
 def vaults(args):
     account = _login(args)
-    if not account.vaults:
+    vault_names = account.vaults.get_vault_names()
+    if not vault_names:
         print('No vaults associated with this user')
         return
     print('The vaults for this user are:')
-    for vault in account.vaults.get_vault_names():
+    for vault in vault_names:
         print('  {}'.format(vault))
 
 

@@ -22,14 +22,14 @@ class Account:
             raise AccountException('must fill in fields')
         self._username = username
         self._db = Connection()
-        secret_key = keyring.get_password(KEYRING_KEY, self._username)
-        main_key = unicodedata.normalize('NFKD', password)
-        if not secret_key:
-            raise AccountException('secret key configuration error')
         statement = 'SELECT auth_key, auth_salt, crypt_salt FROM account WHERE username = ?'
         entries = self._db.query(statement, (self._username,))
         if not entries:
             raise AccountException('username incorrect')
+        secret_key = keyring.get_password(KEYRING_KEY, self._username)
+        main_key = unicodedata.normalize('NFKD', password)
+        if not secret_key:
+            raise AccountException('secret key configuration error')
         auth_key = utils.hash_with_salt(secret_key, main_key, entries[1])
         if auth_key != entries[0]:
             raise AccountException('password incorrect')
