@@ -1,12 +1,12 @@
 import unicodedata
-import utils
 from datetime import datetime
 
 import keyring
 from Crypto.Cipher import AES
 
-from connection import Connection
-from connection import is_password_leaked
+from src import utils
+from src.connection import Connection
+from src.connection import is_password_leaked
 
 KEYRING_KEY = 'bkthomps-passkeep'
 

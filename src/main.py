@@ -6,12 +6,12 @@ import secrets
 import string
 import pyperclip
 
-from account import Account
-from account import AccountException
-from connection import diceware_list_size
-from connection import is_diceware_word
-from connection import is_password_leaked
-from connection import get_random_diceware
+from src.account import Account
+from src.account import AccountException
+from src.connection import diceware_list_size
+from src.connection import is_diceware_word
+from src.connection import is_password_leaked
+from src.connection import get_random_diceware
 
 
 class InputException(Exception):

@@ -1,7 +1,8 @@
 .idea/*
 venv/*
 __pycache__/*
-passkeep.db
+*.pytest_cache
 *.pyc
-leaked_passwords.txt
+passkeep.db
 leaked_passwords.db
+leaked_passwords.txt
