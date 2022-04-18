@@ -7,8 +7,9 @@ from Crypto.Cipher import AES
 from src import utils
 from src.connection import Connection
 from src.connection import is_password_leaked
-
-KEYRING_KEY = 'bkthomps-passkeep'
+from src.constants import KEYRING_KEY
+from src.constants import USERNAME_MAX_LENGTH
+from src.constants import PASSWORD_MIN_LENGTH
 
 
 class AccountException(Exception):
@@ -27,14 +28,14 @@ class Account:
             raise AccountException('this username is the same as the current username')
         if not username:
             raise AccountException('username must be filled in')
-        if len(username) > 40:
+        if len(username) > USERNAME_MAX_LENGTH:
             raise AccountException('username must be at most 40 characters')
 
     @staticmethod
     def _validate_password(password, confirm_password, username=None):
         if password != confirm_password:
             raise AccountException('password does not match confirmation')
-        if len(password) < 8:
+        if len(password) < PASSWORD_MIN_LENGTH:
             raise AccountException('password must be at least 8 characters')
         if password == username:
             raise AccountException('password must not equal username')

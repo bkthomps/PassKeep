@@ -1,6 +1,8 @@
 import os
 import sqlite3
 
+from src.constants import DB_LEAKED_PASSWORDS
+
 MIN_FREQUENCY_TO_STORE = 100
 
 if __name__ == '__main__':
@@ -8,7 +10,7 @@ if __name__ == '__main__':
     file_size = os.stat(file_name).st_size
     average_bytes_per_password = 44
     password_count = file_size / average_bytes_per_password
-    db = sqlite3.connect('leaked_passwords.db')
+    db = sqlite3.connect(DB_LEAKED_PASSWORDS)
     with open(file_name) as file:
         added_count = 0
         line_count = 0

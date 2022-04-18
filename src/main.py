@@ -12,6 +12,8 @@ from src.connection import diceware_list_size
 from src.connection import is_diceware_word
 from src.connection import is_password_leaked
 from src.connection import get_random_diceware
+from src.constants import GENERATE_DICEWARE_MAX_WORDS
+from src.constants import GENERATE_PASSWORD_MAX_LENGTH
 
 
 class InputException(Exception):
@@ -124,11 +126,10 @@ def edit_vault_password(args):
 
 
 def generate(args):
-    max_length = 250
     if args.length <= 0:
         raise InputException('length must be a positive integer')
-    if args.length > max_length:
-        raise InputException('max password length is {} characters'.format(max_length))
+    if args.length > GENERATE_PASSWORD_MAX_LENGTH:
+        raise InputException('max password length is {} characters'.format(GENERATE_PASSWORD_MAX_LENGTH))
     characters = ''
     if not args.no_special:
         characters += string.punctuation
@@ -149,11 +150,10 @@ def generate(args):
 
 
 def diceware(args):
-    max_words = 12
     if args.words <= 0:
         raise InputException('words must be a positive integer')
-    if args.words > max_words:
-        raise InputException('max words length is {} words'.format(max_words))
+    if args.words > GENERATE_DICEWARE_MAX_WORDS:
+        raise InputException('max words length is {} words'.format(GENERATE_DICEWARE_MAX_WORDS))
     if args.separator not in string.punctuation:
         raise InputException('separator is not a special character')
     words = []

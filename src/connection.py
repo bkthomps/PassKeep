@@ -2,10 +2,14 @@ import hashlib
 import secrets
 import sqlite3
 
+from src.constants import DB_DICEWARE_WORDS
+from src.constants import DB_LEAKED_PASSWORDS
+from src.constants import DB_PASSKEEP
+
 
 def is_password_leaked(password):
     password = hashlib.sha1(password.encode('utf-8')).hexdigest().upper()
-    db = sqlite3.connect('leaked_passwords.db')
+    db = sqlite3.connect(DB_LEAKED_PASSWORDS)
     c = db.cursor()
     c.execute('SELECT password FROM leaked_passwords WHERE password = ?', (password,))
     entries = c.fetchone()
@@ -14,7 +18,7 @@ def is_password_leaked(password):
 
 
 def is_diceware_word(word):
-    db = sqlite3.connect('diceware.db')
+    db = sqlite3.connect(DB_DICEWARE_WORDS)
     c = db.cursor()
     c.execute('SELECT word FROM diceware WHERE word = ?', (word,))
     entries = c.fetchone()
@@ -24,7 +28,7 @@ def is_diceware_word(word):
 
 def get_random_diceware():
     random_id = 1 + secrets.randbelow(diceware_list_size())
-    db = sqlite3.connect('diceware.db')
+    db = sqlite3.connect(DB_DICEWARE_WORDS)
     c = db.cursor()
     c.execute('SELECT word FROM diceware WHERE id = ?', (random_id,))
     entries = c.fetchone()
@@ -33,7 +37,7 @@ def get_random_diceware():
 
 
 def diceware_list_size():
-    db = sqlite3.connect('diceware.db')
+    db = sqlite3.connect(DB_DICEWARE_WORDS)
     c = db.cursor()
     c.execute('SELECT COUNT(word) FROM diceware')
     entries = c.fetchone()
@@ -45,7 +49,7 @@ class Connection:
     def __init__(self, username):
         self._username = username
         self._crypt_key = None
-        self._db = sqlite3.connect('passkeep.db')
+        self._db = sqlite3.connect(DB_PASSKEEP)
 
     def query(self, statement, arguments):
         c = self._db.cursor()
