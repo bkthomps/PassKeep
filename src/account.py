@@ -2,7 +2,6 @@ import unicodedata
 from datetime import datetime
 
 import keyring
-from Crypto.Cipher import AES
 
 from src import utils
 from src.connection import Connection
@@ -10,6 +9,7 @@ from src.connection import is_password_leaked
 from src.constants import KEYRING_KEY
 from src.constants import USERNAME_MAX_LENGTH
 from src.constants import PASSWORD_MIN_LENGTH
+from src.vaults import Vaults
 
 
 class AccountException(Exception):
@@ -19,8 +19,8 @@ class AccountException(Exception):
 class Account:
     def __init__(self, username):
         self._username = username
-        self._crypt_key = None
         self._db = Connection()
+        self.vaults = None
 
     @staticmethod
     def _validate_username(username, old_username=None):
@@ -80,7 +80,8 @@ class Account:
         auth_key = utils.hash_with_salt(secret_key, main_key, entries[2])
         if auth_key != entries[1]:
             return False
-        self._crypt_key = utils.hash_with_salt(secret_key, main_key, entries[3])
+        crypt_key = utils.hash_with_salt(secret_key, main_key, entries[3])
+        self.vaults = Vaults(self._username, self._db, crypt_key)
         return True
 
     def edit_username(self, new_username):
@@ -92,6 +93,7 @@ class Account:
         secret_key = keyring.get_password(KEYRING_KEY, self._username)
         keyring.set_password(KEYRING_KEY, new_username, secret_key)
         keyring.delete_password(KEYRING_KEY, self._username)
+        self.vaults.update_username(new_username)
 
     def edit_password(self, password, confirm_password):
         self._validate_password(password, confirm_password)
@@ -101,90 +103,8 @@ class Account:
         crypt_key, crypt_salt = utils.generate_hash(secret_key, main_key)
         statement = 'UPDATE account SET auth_key = ?, auth_salt = ?, crypt_salt = ? WHERE username = ?'
         self._db.execute(statement, (auth_key, auth_salt, crypt_salt, self._username))
-        self._update_vaults(crypt_key)
-
-    def _update_vaults(self, crypt_key):
-        crypt_bytes = utils.byte_string(self._crypt_key)
-        self._crypt_key = crypt_key
-        statement = 'SELECT id, iv, vault_name, description, password FROM vault WHERE username = ?'
-        rows = self._db.query_all(statement, (self._username,))
-        for row in rows:
-            cipher = AES.new(crypt_bytes, AES.MODE_CBC, iv=row[1])
-            vault_name = utils.byte_to_str(cipher.decrypt(utils.byte_string(row[2])))
-            description = utils.byte_to_str(cipher.decrypt(utils.byte_string(row[3])))
-            password = utils.byte_to_str(cipher.decrypt(utils.byte_string(row[4])))
-            self.edit_vault(row[0], row[1], vault_name, description, password)
+        self.vaults.update_vaults_crypt(crypt_key)
 
     def delete_user(self):
         self._db.execute('DELETE FROM account WHERE username = ?', (self._username,))
         keyring.delete_password(KEYRING_KEY, self._username)
-
-    def add_vault(self, vault_name, description, password):
-        if self._does_vault_exist(vault_name):
-            raise AccountException('vault name already exists for this user')
-        crypt_bytes = utils.byte_string(self._crypt_key)
-        vault_name_bytes = utils.zero_pad(vault_name).encode()
-        description_bytes = utils.zero_pad(description).encode()
-        password_bytes = utils.zero_pad(password).encode()
-        cipher = AES.new(crypt_bytes, AES.MODE_CBC)
-        iv = cipher.IV
-        encrypted_vault_name = utils.base64_string(cipher.encrypt(vault_name_bytes))
-        encrypted_description = utils.base64_string(cipher.encrypt(description_bytes))
-        encrypted_password = utils.base64_string(cipher.encrypt(password_bytes))
-        now = datetime.now()
-        insert = (iv, self._username, encrypted_vault_name, encrypted_description, encrypted_password, now, now)
-        self._db.execute('INSERT INTO vault (iv, username, vault_name, description, password, modified, created) '
-                         'VALUES (?, ?, ?, ?, ?, ?, ?)', insert)
-
-    def _does_vault_exist(self, vault_name):
-        vaults = self.get_vaults()
-        for vault in vaults:
-            if vault[0] == vault_name:
-                return True
-        return False
-
-    def get_vaults(self):
-        crypt_bytes = utils.byte_string(self._crypt_key)
-        statement = 'SELECT iv, vault_name, description, password FROM vault WHERE username = ?'
-        rows = self._db.query_all(statement, (self._username,))
-        vaults = []
-        for row in rows:
-            cipher = AES.new(crypt_bytes, AES.MODE_CBC, iv=row[0])
-            vault_name = utils.byte_to_str(cipher.decrypt(utils.byte_string(row[1])))
-            vaults.append((vault_name, cipher, row[2], row[3]))
-        return vaults
-
-    @staticmethod
-    def get_vault(vault_data):
-        cipher = vault_data[1]
-        description = utils.byte_to_str(cipher.decrypt(utils.byte_string(vault_data[2])))
-        password = utils.byte_to_str(cipher.decrypt(utils.byte_string(vault_data[3])))
-        return description, password
-
-    def get_vault_id(self, vault_name):
-        crypt_bytes = utils.byte_string(self._crypt_key)
-        statement = 'SELECT id, iv, vault_name, description, password FROM vault WHERE username = ?'
-        rows = self._db.query_all(statement, (self._username,))
-        for row in rows:
-            cipher = AES.new(crypt_bytes, AES.MODE_CBC, iv=row[1])
-            row_vault_name = utils.byte_to_str(cipher.decrypt(utils.byte_string(row[2])))
-            description = utils.byte_to_str(cipher.decrypt(utils.byte_string(row[3])))
-            password = utils.byte_to_str(cipher.decrypt(utils.byte_string(row[4])))
-            if vault_name == row_vault_name:
-                return row[0], row[1], row_vault_name, description, password
-        raise AccountException('this user has no vault with that name')
-
-    def delete_vault(self, vault_id):
-        self._db.execute('DELETE FROM vault WHERE id = ?', (vault_id,))
-
-    def edit_vault(self, vault_id, iv, vault_name, description, password):
-        vault_name_bytes = utils.zero_pad(vault_name).encode()
-        description_bytes = utils.zero_pad(description).encode()
-        password_bytes = utils.zero_pad(password).encode()
-        crypt_bytes = utils.byte_string(self._crypt_key)
-        cipher = AES.new(crypt_bytes, AES.MODE_CBC, iv=iv)
-        encrypted_vault_name = utils.base64_string(cipher.encrypt(vault_name_bytes))
-        encrypted_description = utils.base64_string(cipher.encrypt(description_bytes))
-        encrypted_password = utils.base64_string(cipher.encrypt(password_bytes))
-        self._db.execute('UPDATE vault SET vault_name = ?, description = ?, password = ? WHERE id = ?',
-                         (encrypted_vault_name, encrypted_description, encrypted_password, vault_id))

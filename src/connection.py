@@ -54,4 +54,4 @@ class Connection:
     def execute(self, statement, arguments):
         with self._db:
             entries = self._db.execute(statement, arguments)
-        return entries
+        return entries.lastrowid

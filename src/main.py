@@ -14,6 +14,7 @@ from src.connection import is_password_leaked
 from src.connection import get_random_diceware
 from src.constants import GENERATE_DICEWARE_MAX_WORDS
 from src.constants import GENERATE_PASSWORD_MAX_LENGTH
+from src.vaults import VaultException
 
 
 class InputException(Exception):
@@ -62,65 +63,54 @@ def delete_user(args):
 
 def vaults(args):
     account = _login(args)
-    account_vaults = account.get_vaults()
-    if len(account_vaults) == 0:
+    if not account.vaults:
         print('No vaults associated with this user')
         return
     print('The vaults for this user are:')
-    account_vaults.sort(key=lambda x: x[0])
-    for vault in account_vaults:
-        print('  {}'.format(vault[0]))
+    for vault in account.vaults.get_vault_names():
+        print('  {}'.format(vault))
 
 
 def get_vault(args):
     account = _login(args)
-    account_vaults = account.get_vaults()
-    for vault_data in account_vaults:
-        if vault_data[0] == args.name:
-            (description, password) = account.get_vault(vault_data)
-            print('Account Name: ' + vault_data[0])
-            print('Description: ' + description)
-            print('The password has been copied to your clipboard.')
-            pyperclip.copy(password)
-            return
-    raise InputException('vault name not found')
+    (description, password) = account.vaults.get_vault_data(args.name)
+    print('Account Name: ' + args.name)
+    print('Description: ' + description)
+    print('The password has been copied to your clipboard.')
+    pyperclip.copy(password)
 
 
 def add_vault(args):
     account = _login(args)
     description = input('Vault Description:')
     password = getpass.getpass('Vault Password:')
-    account.add_vault(args.name, description, password)
+    account.vaults.add_vault(args.name, description, password)
     if is_password_leaked(password):
         print('Warning: Password is part of a public data leak, consider changing it')
 
 
 def delete_vault(args):
     account = _login(args)
-    (vault_id, _, _, _, _) = account.get_vault_id(args.name)
     _confirm('deletion of vault "{}"'.format(args.name))
-    account.delete_vault(vault_id)
+    account.vaults.delete_vault(args.name)
 
 
 def edit_vault_name(args):
     account = _login(args)
-    (vault_id, iv, old_name, old_description, old_password) = account.get_vault_id(args.name)
     vault_name = input('New Vault Name:')
-    account.edit_vault_name(vault_id, iv, vault_name, old_description, old_password)
+    account.vaults.edit_vault_name(args.name, vault_name)
 
 
 def edit_vault_description(args):
     account = _login(args)
-    (vault_id, iv, old_name, old_description, old_password) = account.get_vault_id(args.name)
     description = input('New Description:')
-    account.edit_vault_description(vault_id, iv, old_name, description, old_password)
+    account.vaults.edit_vault_description(args.name, description)
 
 
 def edit_vault_password(args):
     account = _login(args)
-    (vault_id, iv, old_name, old_description, old_password) = account.get_vault_id(args.name)
     vault_password = getpass.getpass('New Vault Password:')
-    account.edit_vault_password(vault_id, iv, old_name, old_description, vault_password)
+    account.vaults.edit_vault_description(args.name, vault_password)
     if is_password_leaked(vault_password):
         print('Warning: Password is part of a public data leak, consider changing it')
 
@@ -228,7 +218,7 @@ def _entropy_random(password):
     return math.log2(char_set_size ** len(password))
 
 
-if __name__ == '__main__':
+def main():
     parser = argparse.ArgumentParser(prog='pk',
                                      usage='%(prog)s [options] path',
                                      description='An open-source local password manager.')
@@ -313,7 +303,7 @@ if __name__ == '__main__':
     if getattr(arguments, 'func', None):
         try:
             arguments.func(arguments)
-        except (InputException, AccountException) as e:
+        except (InputException, AccountException, VaultException) as e:
             print('Error: ' + str(e))
         except KeyboardInterrupt:
             pass
