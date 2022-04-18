@@ -20,7 +20,7 @@ class Account:
     def __init__(self, username):
         self._username = username
         self._crypt_key = None
-        self._db = Connection(username)
+        self._db = Connection()
 
     @staticmethod
     def _validate_username(username, old_username=None):
@@ -46,7 +46,7 @@ class Account:
     def signup(username, password, confirm_password):
         Account._validate_username(username)
         Account._validate_password(password, confirm_password, username)
-        connection = Connection(username)
+        connection = Connection()
         entries = connection.query('SELECT username, COUNT(username) FROM account WHERE username = ?', (username,))
         if entries[1]:
             raise AccountException('username already exists')
@@ -85,11 +85,10 @@ class Account:
 
     def edit_username(self, new_username):
         self._validate_username(new_username, self._username)
-        connection = Connection(new_username)
-        entries = connection.query('SELECT username, COUNT(username) FROM account WHERE username = ?', (new_username,))
+        entries = self._db.query('SELECT username, COUNT(username) FROM account WHERE username = ?', (new_username,))
         if entries[1]:
             raise AccountException('username already exists')
-        connection.execute('UPDATE account SET username = ? WHERE username = ?', (new_username, self._username))
+        self._db.execute('UPDATE account SET username = ? WHERE username = ?', (new_username, self._username))
         secret_key = keyring.get_password(KEYRING_KEY, self._username)
         keyring.set_password(KEYRING_KEY, new_username, secret_key)
         keyring.delete_password(KEYRING_KEY, self._username)
