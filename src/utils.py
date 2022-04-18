@@ -49,3 +49,12 @@ def zero_pad(string):
 
 def byte_to_str(byte):
     return str(byte)[2:][:-1].split('\\x00', 1)[0]
+
+
+def encrypt(cipher, plaintext):
+    plaintext_bytes = zero_pad(plaintext).encode()
+    return base64_string(cipher.encrypt(plaintext_bytes))
+
+
+def decrypt(cipher, ciphertext):
+    return byte_to_str(cipher.decrypt(byte_string(ciphertext)))

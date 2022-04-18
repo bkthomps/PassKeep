@@ -31,9 +31,9 @@ class Vaults:
         for row in rows:
             (vault_id, vault_iv, encrypted_vault_name, encrypted_description, encrypted_password) = row
             cipher = AES.new(self._crypt_bytes, AES.MODE_CBC, iv=vault_iv)
-            vault_name = utils.byte_to_str(cipher.decrypt(utils.byte_string(encrypted_vault_name)))
-            description = utils.byte_to_str(cipher.decrypt(utils.byte_string(encrypted_description)))
-            password = utils.byte_to_str(cipher.decrypt(utils.byte_string(encrypted_password)))
+            vault_name = utils.decrypt(cipher, encrypted_vault_name)
+            description = utils.decrypt(cipher, encrypted_description)
+            password = utils.decrypt(cipher, encrypted_password)
             vault_data = self.VaultData(id=vault_id, iv=vault_iv, description=description, password=password)
             vaults[vault_name] = vault_data
         return vaults
@@ -57,14 +57,11 @@ class Vaults:
     def add_vault(self, name, description, password):
         if name in self._vaults:
             raise VaultException('vault "{}" already exists for this user'.format(name))
-        vault_name_bytes = utils.zero_pad(name).encode()
-        description_bytes = utils.zero_pad(description).encode()
-        password_bytes = utils.zero_pad(password).encode()
         cipher = AES.new(self._crypt_bytes, AES.MODE_CBC)
         iv = cipher.IV
-        encrypted_vault_name = utils.base64_string(cipher.encrypt(vault_name_bytes))
-        encrypted_description = utils.base64_string(cipher.encrypt(description_bytes))
-        encrypted_password = utils.base64_string(cipher.encrypt(password_bytes))
+        encrypted_vault_name = utils.encrypt(cipher, name)
+        encrypted_description = utils.encrypt(cipher, description)
+        encrypted_password = utils.encrypt(cipher, password)
         now = datetime.now()
         vault_id = self._db.execute(
             'INSERT INTO vault (iv, username, vault_name, description, password, modified, created) '
@@ -98,13 +95,10 @@ class Vaults:
         vault.password = new_password
 
     def _edit_vault(self, vault, new_name, new_description, new_password):
-        vault_name_bytes = utils.zero_pad(new_name).encode()
-        description_bytes = utils.zero_pad(new_description).encode()
-        password_bytes = utils.zero_pad(new_password).encode()
         cipher = AES.new(self._crypt_bytes, AES.MODE_CBC, iv=vault.iv)
-        encrypted_vault_name = utils.base64_string(cipher.encrypt(vault_name_bytes))
-        encrypted_description = utils.base64_string(cipher.encrypt(description_bytes))
-        encrypted_password = utils.base64_string(cipher.encrypt(password_bytes))
+        encrypted_vault_name = utils.encrypt(cipher, new_name)
+        encrypted_description = utils.encrypt(cipher, new_description)
+        encrypted_password = utils.encrypt(cipher, new_password)
         self._db.execute('UPDATE vault SET vault_name = ?, description = ?, password = ? WHERE id = ?',
                          (encrypted_vault_name, encrypted_description, encrypted_password, vault.id))
 
