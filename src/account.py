@@ -22,11 +22,16 @@ class Account:
         self._db = Connection(username)
 
     @staticmethod
-    def signup(username, password, confirm_password):
-        if len(username) == 0:
+    def _validate_username(username, old_username=None):
+        if username == old_username:
+            raise AccountException('this username is the same as the current username')
+        if not username:
             raise AccountException('username must be filled in')
         if len(username) > 40:
             raise AccountException('username must be at most 40 characters')
+
+    @staticmethod
+    def _validate_password(password, confirm_password, username=None):
         if password != confirm_password:
             raise AccountException('password does not match confirmation')
         if len(password) < 8:
@@ -35,6 +40,11 @@ class Account:
             raise AccountException('password must not equal username')
         if is_password_leaked(password):
             raise AccountException('password is present in a public data leak')
+
+    @staticmethod
+    def signup(username, password, confirm_password):
+        Account._validate_username(username)
+        Account._validate_password(password, confirm_password, username)
         connection = Connection(username)
         entries = connection.query('SELECT username, COUNT(username) FROM account WHERE username = ?', (username,))
         if entries[1]:
@@ -51,7 +61,7 @@ class Account:
 
     @staticmethod
     def login(username, password):
-        if len(username) == 0 or len(password) == 0:
+        if not username or not password:
             raise AccountException('must fill in fields')
         account = Account(username)
         secret_key = keyring.get_password(KEYRING_KEY, username)
@@ -73,12 +83,7 @@ class Account:
         return True
 
     def edit_username(self, new_username):
-        if new_username == self._username:
-            raise AccountException('this username is the same as the current username')
-        if len(new_username) == 0:
-            raise AccountException('username must be filled in')
-        if len(new_username) > 40:
-            raise AccountException('username must be at most 40 characters')
+        self._validate_username(new_username, self._username)
         connection = Connection(new_username)
         entries = connection.query('SELECT username, COUNT(username) FROM account WHERE username = ?', (new_username,))
         if entries[1]:
@@ -89,14 +94,7 @@ class Account:
         keyring.delete_password(KEYRING_KEY, self._username)
 
     def edit_password(self, password, confirm_password):
-        if password != confirm_password:
-            raise AccountException('password does not match confirmation')
-        if len(password) < 8:
-            raise AccountException('password must be at least 8 characters')
-        if password == self._username:
-            raise AccountException('password must not equal username')
-        if is_password_leaked(password):
-            raise AccountException('password is present in a public data leak')
+        self._validate_password(password, confirm_password)
         main_key = unicodedata.normalize('NFKD', password)
         secret_key = keyring.get_password(KEYRING_KEY, self._username)
         auth_key, auth_salt = utils.generate_hash(secret_key, main_key)
