@@ -142,15 +142,18 @@ def diceware(args):
 
 def strength(_):
     password_input = getpass.getpass('Password:')
+    if not password_input:
+        return
+    if len(password_input) > constants.GENERATE_PASSWORD_MAX_LENGTH:
+        raise UserInputException('max password length is {} characters'.format(constants.GENERATE_PASSWORD_MAX_LENGTH))
     password = password_utils.Password(password_input)
     entropy = password.entropy
-    if password.is_diceware:
-        print('This diceware password has an entropy of {:.2f}'.format(entropy))
-    else:
-        print('If this password is randomly-generated, it has an entropy of {:.2f}'.format(entropy))
     bucket = min(int(entropy / constants.ENTROPY_PER_CATEGORY), len(constants.ENTROPY_CATEGORIES) - 1)
     category = constants.ENTROPY_CATEGORIES[bucket]
-    print('This password is considered {}'.format(category))
+    if password.is_diceware:
+        print('This diceware password is {} (entropy {:.2f})'.format(category, entropy))
+    else:
+        print('Assuming it is randomly-generated, this password is {} (entropy {:.2f})'.format(category, entropy))
 
 
 def main():
@@ -163,7 +166,7 @@ def main():
     parser_signup.add_argument('--username', '-u', type=str, required=True)
     parser_signup.set_defaults(func=signup)
 
-    parser_delete = subparsers.add_parser('delete', help='Delete an new account.')
+    parser_delete = subparsers.add_parser('delete', help='Delete an existing account.')
     parser_delete.add_argument('--username', '-u', type=str, required=True)
     parser_delete.set_defaults(func=delete_user)
 
