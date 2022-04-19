@@ -1,24 +1,15 @@
 import argparse
 import getpass
-import math
 import random
-import secrets
 import string
+
 import pyperclip
 
+from src import constants
+from src import password_utils
 from src.account import Account
-from src.account import AccountException
-from src.connection import diceware_list_size
-from src.connection import is_diceware_word
 from src.connection import is_password_leaked
-from src.connection import get_random_diceware
-from src.constants import GENERATE_DICEWARE_MAX_WORDS
-from src.constants import GENERATE_PASSWORD_MAX_LENGTH
-from src.vaults import VaultException
-
-
-class InputException(Exception):
-    pass
+from src.exceptions import UserInputException
 
 
 def signup(args):
@@ -39,7 +30,7 @@ def _confirm(text):
     print('To confirm {}, enter {}'.format(text, number))
     confirm = input('Confirmation:')
     if str(number) != confirm:
-        raise InputException('input does not match confirmation')
+        raise UserInputException('input does not match confirmation')
 
 
 def edit_username(args):
@@ -118,9 +109,9 @@ def edit_vault_password(args):
 
 def generate(args):
     if args.length <= 0:
-        raise InputException('length must be a positive integer')
-    if args.length > GENERATE_PASSWORD_MAX_LENGTH:
-        raise InputException('max password length is {} characters'.format(GENERATE_PASSWORD_MAX_LENGTH))
+        raise UserInputException('length must be a positive integer')
+    if args.length > constants.GENERATE_PASSWORD_MAX_LENGTH:
+        raise UserInputException('max password length is {} characters'.format(constants.GENERATE_PASSWORD_MAX_LENGTH))
     characters = ''
     if not args.no_special:
         characters += string.punctuation
@@ -131,92 +122,35 @@ def generate(args):
     if not args.no_lower:
         characters += string.ascii_lowercase
     if not characters:
-        raise InputException('no characters in permitted set')
-    password = ''
-    for i in range(args.length):
-        random_index = secrets.randbelow(len(characters))
-        password += characters[random_index]
+        raise UserInputException('no characters in permitted set')
+    password = password_utils.random_password(characters, args.length)
     print('The random password has been copied to your clipboard.')
     pyperclip.copy(password)
 
 
 def diceware(args):
     if args.words <= 0:
-        raise InputException('words must be a positive integer')
-    if args.words > GENERATE_DICEWARE_MAX_WORDS:
-        raise InputException('max words length is {} words'.format(GENERATE_DICEWARE_MAX_WORDS))
+        raise UserInputException('words must be a positive integer')
+    if args.words > constants.GENERATE_DICEWARE_MAX_WORDS:
+        raise UserInputException('max words length is {} words'.format(constants.GENERATE_DICEWARE_MAX_WORDS))
     if args.separator not in string.punctuation:
-        raise InputException('separator is not a special character')
-    words = []
-    for _ in range(args.words):
-        words.append(get_random_diceware())
-    password = args.separator.join(words)
+        raise UserInputException('separator is not a special character')
+    password = password_utils.random_diceware(args.separator, args.words)
     print('The diceware password has been copied to your clipboard.')
     pyperclip.copy(password)
 
 
-def strength(args):
-    password = getpass.getpass('Password:')
-    entropy = _entropy(password)
-    if entropy < 25:
-        print('This is a very weak password')
-    elif entropy < 50:
-        print('This is a weak password')
-    elif entropy < 75:
-        print('This is a reasonable password')
-    elif entropy < 100:
-        print('This is a strong password')
-    else:
-        print('This is a very strong password')
-
-
-def _entropy(password):
-    (is_diceware, size) = _is_diceware(password)
-    if is_diceware:
-        entropy = _entropy_diceware(size)
+def strength(_):
+    password_input = getpass.getpass('Password:')
+    password = password_utils.Password(password_input)
+    entropy = password.entropy
+    if password.is_diceware:
         print('This diceware password has an entropy of {:.2f}'.format(entropy))
     else:
-        entropy = _entropy_random(password)
         print('If this password is randomly-generated, it has an entropy of {:.2f}'.format(entropy))
-    return entropy
-
-
-def _is_diceware(password):
-    delimiter = None
-    for c in password:
-        if c in string.punctuation:
-            if delimiter and delimiter != c:
-                return False, 0
-            delimiter = c
-    if not delimiter:
-        return False, 0
-    words = password.split(delimiter)
-    for word in words:
-        if not is_diceware_word(word):
-            return False, 0
-    return True, len(words)
-
-
-def _entropy_diceware(size):
-    return math.log2(diceware_list_size() ** size)
-
-
-def _entropy_random(password):
-    character_sets = [string.ascii_lowercase, string.ascii_uppercase, string.digits, string.punctuation]
-    all_characters = ''.join(character_sets)
-    used = set()
-    char_set_size = 0
-    for c in password:
-        if c in all_characters:
-            for char_set in character_sets:
-                if c in char_set and char_set not in used:
-                    char_set_size += len(char_set)
-                    used.add(char_set)
-            continue
-        if c not in used:
-            char_set_size += 1
-            used.add(c)
-    return math.log2(char_set_size ** len(password))
+    bucket = min(int(entropy / constants.ENTROPY_PER_CATEGORY), len(constants.ENTROPY_CATEGORIES) - 1)
+    category = constants.ENTROPY_CATEGORIES[bucket]
+    print('This password is considered {}'.format(category))
 
 
 def main():
@@ -304,7 +238,7 @@ def main():
     if getattr(arguments, 'func', None):
         try:
             arguments.func(arguments)
-        except (InputException, AccountException, VaultException) as e:
+        except UserInputException as e:
             print('Error: ' + str(e))
         except KeyboardInterrupt:
             pass

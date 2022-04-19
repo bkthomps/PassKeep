@@ -3,11 +3,8 @@ from datetime import datetime
 
 from Crypto.Cipher import AES
 
-from src import utils
-
-
-class VaultException(Exception):
-    pass
+from src import crypt_utils
+from src.exceptions import VaultException
 
 
 class Vaults:
@@ -21,7 +18,7 @@ class Vaults:
     def __init__(self, username, db, crypt_key):
         self._username = username
         self._db = db
-        self._crypt_bytes = utils.byte_string(crypt_key)
+        self._crypt_bytes = crypt_utils.byte_string(crypt_key)
         self._vaults = self._get_vaults()
 
     def _get_vaults(self):
@@ -31,9 +28,9 @@ class Vaults:
         for row in rows:
             (vault_id, vault_iv, encrypted_vault_name, encrypted_description, encrypted_password) = row
             cipher = AES.new(self._crypt_bytes, AES.MODE_CBC, iv=vault_iv)
-            vault_name = utils.decrypt(cipher, encrypted_vault_name)
-            description = utils.decrypt(cipher, encrypted_description)
-            password = utils.decrypt(cipher, encrypted_password)
+            vault_name = crypt_utils.decrypt(cipher, encrypted_vault_name)
+            description = crypt_utils.decrypt(cipher, encrypted_description)
+            password = crypt_utils.decrypt(cipher, encrypted_password)
             vault_data = self.VaultData(id=vault_id, iv=vault_iv, description=description, password=password)
             vaults[vault_name] = vault_data
         return vaults
@@ -59,9 +56,9 @@ class Vaults:
             raise VaultException('vault "{}" already exists for this user'.format(name))
         cipher = AES.new(self._crypt_bytes, AES.MODE_CBC)
         iv = cipher.IV
-        encrypted_vault_name = utils.encrypt(cipher, name)
-        encrypted_description = utils.encrypt(cipher, description)
-        encrypted_password = utils.encrypt(cipher, password)
+        encrypted_vault_name = crypt_utils.encrypt(cipher, name)
+        encrypted_description = crypt_utils.encrypt(cipher, description)
+        encrypted_password = crypt_utils.encrypt(cipher, password)
         now = datetime.now()
         vault_id = self._db.execute(
             'INSERT INTO vault (iv, username, vault_name, description, password, modified, created) '
@@ -96,14 +93,14 @@ class Vaults:
 
     def _edit_vault(self, vault, new_name, new_description, new_password):
         cipher = AES.new(self._crypt_bytes, AES.MODE_CBC, iv=vault.iv)
-        encrypted_vault_name = utils.encrypt(cipher, new_name)
-        encrypted_description = utils.encrypt(cipher, new_description)
-        encrypted_password = utils.encrypt(cipher, new_password)
+        encrypted_vault_name = crypt_utils.encrypt(cipher, new_name)
+        encrypted_description = crypt_utils.encrypt(cipher, new_description)
+        encrypted_password = crypt_utils.encrypt(cipher, new_password)
         self._db.execute('UPDATE vault SET vault_name = ?, description = ?, password = ? WHERE id = ?',
                          (encrypted_vault_name, encrypted_description, encrypted_password, vault.id))
 
     def update_vaults_crypt(self, crypt_key):
-        self._crypt_bytes = utils.byte_string(crypt_key)
+        self._crypt_bytes = crypt_utils.byte_string(crypt_key)
         for vault_name, vault in self._vaults.items():
             self._edit_vault(vault, vault_name, vault.description, vault.password)
 

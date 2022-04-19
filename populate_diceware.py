@@ -10,5 +10,5 @@ if __name__ == '__main__':
         with db:
             for line in file:
                 strings = line.split('	')
-                word = strings[1].rstrip('\n')
+                word = strings[1].replace('-', '').rstrip('\n')
                 db.execute('INSERT INTO diceware (word) VALUES (?)', (word,))

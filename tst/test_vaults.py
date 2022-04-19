@@ -2,7 +2,7 @@ import random
 import string
 import pytest
 
-from src import utils
+from src import crypt_utils
 from src.connection import Connection
 from src.vaults import Vaults
 from src.vaults import VaultException
@@ -15,7 +15,7 @@ def _random(length=8):
 class BaseTestVaults:
     def setup_method(self):
         self.username = _random()
-        self.crypt_key = utils.generate_secret_key()
+        self.crypt_key = crypt_utils.generate_secret_key()
         self.vaults = Vaults(self.username, Connection(), self.crypt_key)
         assert len(self.vaults.get_vault_names()) == 0
         self.vaults.add_vault('name-1', 'description-1', 'password-1')
@@ -118,7 +118,7 @@ class TestEditVaultPassword(BaseTestVaults):
 class TestException:
     def setup_method(self):
         self.username = _random()
-        self.crypt_key = utils.generate_secret_key()
+        self.crypt_key = crypt_utils.generate_secret_key()
         self.vaults = Vaults(self.username, Connection(), self.crypt_key)
         self.vaults.add_vault('name', 'description', 'password')
 

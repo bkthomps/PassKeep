@@ -12,3 +12,6 @@ GENERATE_DICEWARE_MAX_WORDS = 12
 
 SALT_SIZE = 32
 HASH_ROUNDS = 250_000
+
+ENTROPY_PER_CATEGORY = 25
+ENTROPY_CATEGORIES = ['very bad', 'bad', 'reasonable', 'good', 'very good', 'excellent', 'outstanding']
