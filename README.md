@@ -17,6 +17,8 @@ Random password generation and diceware password generation is a provided utilit
 random passwords and diceware passwords.
 
 ## Building
+The minimum python version is 3.7 and sqlite3 is required (installed by default on MacOS).
+
 Run `make` and follow the instructions printed out.
 
 ## Cryptographic Implementation
