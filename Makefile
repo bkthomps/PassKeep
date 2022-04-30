@@ -1,5 +1,7 @@
 .DEFAULT_GOAL := setup
 
+OS := $(shell uname 2>/dev/null || echo Unknown)
+
 setup: setup_passwords_db extract_leaked_db
 	@echo "\n\n\n\n\n##############################\n\n"
 	@echo "You can add the following line to your bashrc or zshrc:"
@@ -12,6 +14,9 @@ setup: setup_passwords_db extract_leaked_db
 setup_passwords_db:
 	if [ -f passkeep.db ]; then \
 		mv passkeep.db passkeep_backup_$(shell date +%Y-%m-%dT%H:%M:%S).db; \
+	fi
+	if [ OS = "Linux" ]; then \
+		python3 -m pip install dbus-python==1.2.18 \
 	fi
 	python3 -m pip install --upgrade pip -r requirements.txt
 	sqlite3 passkeep.db < initdb.sql
