@@ -40,4 +40,4 @@ test:
 
 coverage:
 	python3 -m pip install pytest-codecov
-	pytest tst --codecov
+	pytest tst --cov=./ --cov-report=xml
