@@ -3,6 +3,7 @@ venv/*
 __pycache__/*
 *.pytest_cache
 *.pyc
-passkeep.db
+passkeep*.db
 leaked_passwords.db
 leaked_passwords.txt
+pass
