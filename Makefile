@@ -37,3 +37,7 @@ delete_backups:
 
 test:
 	pytest tst -n auto
+
+coverage:
+	python3 -m pip install pytest-codecov
+	pytest tst --codecov

@@ -14,3 +14,12 @@ jobs:
         python-version: ${{ matrix.python-version }}
     - run: make setup
     - run: make test
+  coverage:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-python@v3
+        with:
+          python-version: '3'
+      - run: make setup
+      - run: make coverage

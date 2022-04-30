@@ -1,4 +1,5 @@
 [![GitHubBuild](https://github.com/bkthomps/PassKeep/workflows/build/badge.svg)](https://github.com/bkthomps/PassKeep)
+[![codecov](https://codecov.io/gh/bkthomps/PassKeep/branch/main/graph/badge.svg)](https://codecov.io/gh/bkthomps/PassKeep)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/bkthomps/PassKeep/blob/main/LICENSE)
 
 # PassKeep
