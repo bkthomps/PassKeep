@@ -1,4 +1,5 @@
 [![GitHubBuild](https://github.com/bkthomps/PassKeep/workflows/build/badge.svg)](https://github.com/bkthomps/PassKeep)
+[![License](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/bkthomps/PassKeep/blob/master/LICENSE)
 
 # PassKeep
 Open-source local password manager which uses PBKDF2 hashing with random salts to store account passwords, and
