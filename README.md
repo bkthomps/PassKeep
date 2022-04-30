@@ -5,6 +5,10 @@
 Open-source local password manager which uses PBKDF2 hashing with random salts to store account passwords, and
 AES encryption in CBC mode to encrypt vault information.
 
+<p align="center">
+  <img src="https://raw.githubusercontent.com/bkthomps/PassKeep/main/flow_chart.pdf" width="400" title="Flow Chart" alt="Flow chart of the salt and hashing">
+</p>
+
 ## Utility
 The user can create accounts and save vaults to those accounts. Each account is accessed by creating a username and a
 password, which can later be changed. Each account can contain vaults which each have a name, description, and password.
