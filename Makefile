@@ -1,15 +1,12 @@
 .DEFAULT_GOAL := setup
 
 setup: setup_passwords_db extract_leaked_db
-	python3 -m pip install pyinstaller
-	pyinstaller --onefile pass.py
-	mv dist/pass .
-	rm -r dist build
-	rm pass.spec
 	@echo "\n\n\n\n\n##############################\n\n"
-	@echo "You can run: sudo mv pass /usr/local/bin/"
+	@echo "You can add the following line to your bashrc or zshrc:"
 	@echo "\n"
-	@echo "This will let you execute 'pass' from anywhere"
+	@echo "alias pass=\"pushd && cd $(PWD) && python3 -m pass && popd\""
+	@echo "\n"
+	@echo "Then source your bashrc or zshrc"
 	@echo "\n\n##############################\n\n"
 
 setup_passwords_db:
@@ -34,6 +31,9 @@ create_diceware_db:
 	rm -f diceware.db
 	sqlite3 diceware.db < initdb_diceware.sql
 	python3 populate_diceware.py
+
+delete_backups:
+	rm -rf passkeep_backup_*.db
 
 test:
 	pytest tst -n auto
