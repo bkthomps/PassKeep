@@ -16,6 +16,11 @@ preventing account creation of weak passwords, and warning on vault creation wit
 Random password generation and diceware password generation is a provided utility, as well as strength checking of
 random passwords and diceware passwords.
 
+## Building
+Run `make` and follow the instructions printed out.
+Minimum python versions: 3.8.12+, 3.9.7+, 3.10.0+
+Minimum OS versions: MacOS 11+
+
 ## Cryptographic Implementation
 Whenever the user creates an account, the password is normalized and that normalized password is considered the main
 key. In addition, a secret key of 32 cryptographically random bytes is created. A cryptographically random salt of 32
