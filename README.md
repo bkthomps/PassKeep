@@ -6,7 +6,7 @@ Open-source local password manager which uses PBKDF2 hashing with random salts t
 AES encryption in CBC mode to encrypt vault information.
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/bkthomps/PassKeep/main/flow_chart.png" width="400" title="Flow Chart" alt="Flow chart of the salt and hashing">
+  <img src="https://raw.githubusercontent.com/bkthomps/PassKeep/main/flow_chart.png" height="400" title="Flow Chart" alt="Flow chart of the salt and hashing">
 </p>
 
 ## Utility
