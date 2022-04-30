@@ -15,7 +15,7 @@ The user can create accounts and save vaults to those accounts. Each account is 
 password, which can later be changed. Each account can contain vaults which each have a name, description, and password.
 The account password is salted and hashed, and the name, description, and password of each vault is encrypted.
 
-Password checking for minimum length is performed as well as checking a corpus of previously-breaches passwords for
+Password checking for minimum length is performed as well as checking a corpus of previously-breached passwords for
 preventing account creation of weak passwords, and warning on vault creation with weak passwords.
 
 Random password generation and diceware password generation is a provided utility, as well as strength checking of
