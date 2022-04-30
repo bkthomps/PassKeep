@@ -14,7 +14,8 @@ setup_passwords_db:
 		mv passkeep.db passkeep_backup_$(shell date +%Y-%m-%dT%H:%M:%S).db; \
 	fi
 	if [ $(shell uname) = "Linux" ]; then \
-		python3 -m pip install dbus-python==1.2.18; \
+		sudo apt-get update -y; \
+		sudo apt-get install -y dbus; \
 	fi
 	python3 -m pip install --upgrade pip -r requirements.txt
 	sqlite3 passkeep.db < initdb.sql
