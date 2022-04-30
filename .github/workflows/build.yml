@@ -4,7 +4,6 @@ jobs:
   general:
     runs-on: macos-latest
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
     - run: make setup
-    - run: make extract_passwords_db
     - run: make test
