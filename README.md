@@ -18,7 +18,9 @@ random passwords and diceware passwords.
 
 ## Building
 Run `make` and follow the instructions printed out.
+
 Minimum python versions: 3.8.12+, 3.9.7+, 3.10.0+
+
 Minimum OS versions: MacOS 11+
 
 ## Cryptographic Implementation
