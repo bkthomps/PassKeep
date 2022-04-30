@@ -1,5 +1,4 @@
 import base64
-import secrets
 
 from passlib.hash import pbkdf2_sha256
 
@@ -14,32 +13,17 @@ def base64_string(_byte_string):
     return base64.b64encode(_byte_string, b'./').decode('utf-8').replace('=', '')
 
 
-def generate_secret_key():
-    secret_key_bytes = secrets.token_bytes(constants.SALT_SIZE)
-    return base64_string(secret_key_bytes)
-
-
-def generate_hash(secret_key, main_key):
+def generate_hash(main_key):
     pair = pbkdf2_sha256.using(rounds=constants.HASH_ROUNDS, salt_size=constants.SALT_SIZE).hash(main_key)
     salt = pair.split('$')[3]
     hashed = pair.split('$')[4]
-    key = combine_keys(secret_key, hashed)
-    return key, salt
+    return hashed, salt
 
 
-def combine_keys(secret_key, main_key):
-    secret_key_bytes = byte_string(secret_key)
-    main_key_bytes = byte_string(main_key)
-    combined_key_bytes = bytearray(constants.SALT_SIZE)
-    for i in range(constants.SALT_SIZE):
-        combined_key_bytes[i] = secret_key_bytes[i] ^ main_key_bytes[i]
-    return base64_string(combined_key_bytes)
-
-
-def hash_with_salt(secret_key, main_key, salt):
+def hash_with_salt(main_key, salt):
     salt_bytes = byte_string(salt)
     pair = pbkdf2_sha256.using(rounds=constants.HASH_ROUNDS, salt=salt_bytes).hash(main_key)
-    return combine_keys(secret_key, pair.split('$')[4])
+    return pair.split('$')[4]
 
 
 def zero_pad(string):

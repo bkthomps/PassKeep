@@ -1,8 +1,6 @@
 from datetime import datetime
 import unicodedata
 
-import keyring
-
 from src import crypt_utils
 from src import constants
 from src.connection import Connection
@@ -21,14 +19,11 @@ class Account:
         entries = self._db.query(statement, (self._username,))
         if not entries:
             raise AccountException('username incorrect')
-        secret_key = keyring.get_password(constants.KEYRING_KEY, self._username)
         main_key = unicodedata.normalize('NFKD', password)
-        if not secret_key:
-            raise AccountException('secret key configuration error')
-        auth_key = crypt_utils.hash_with_salt(secret_key, main_key, entries[1])
+        auth_key = crypt_utils.hash_with_salt(main_key, entries[1])
         if auth_key != entries[0]:
             raise AccountException('password incorrect')
-        crypt_key = crypt_utils.hash_with_salt(secret_key, main_key, entries[2])
+        crypt_key = crypt_utils.hash_with_salt(main_key, entries[2])
         self.vaults = Vaults(self._username, self._db, crypt_key)
 
     @staticmethod
@@ -60,14 +55,12 @@ class Account:
         if entries:
             raise AccountException('username already exists')
         main_key = unicodedata.normalize('NFKD', password)
-        secret_key = crypt_utils.generate_secret_key()
-        auth_key, auth_salt = crypt_utils.generate_hash(secret_key, main_key)
-        crypt_key, crypt_salt = crypt_utils.generate_hash(secret_key, main_key)
+        auth_key, auth_salt = crypt_utils.generate_hash(main_key)
+        crypt_key, crypt_salt = crypt_utils.generate_hash(main_key)
         now = datetime.now()
         insert = (username, auth_key, auth_salt, crypt_salt, now, now)
         db.execute('INSERT INTO account (username, auth_key, auth_salt, crypt_salt, modified, created) '
                    'VALUES (?, ?, ?, ?, ?, ?)', insert)
-        keyring.set_password(constants.KEYRING_KEY, username, secret_key)
 
     def edit_username(self, new_username):
         self._validate_username(new_username, self._username)
@@ -75,21 +68,16 @@ class Account:
         if entries[1]:
             raise AccountException('username already exists')
         self._db.execute('UPDATE account SET username = ? WHERE username = ?', (new_username, self._username))
-        secret_key = keyring.get_password(constants.KEYRING_KEY, self._username)
-        keyring.set_password(constants.KEYRING_KEY, new_username, secret_key)
-        keyring.delete_password(constants.KEYRING_KEY, self._username)
         self.vaults.update_username(new_username)
 
     def edit_password(self, password, confirm_password):
         self._validate_password(password, confirm_password)
         main_key = unicodedata.normalize('NFKD', password)
-        secret_key = keyring.get_password(constants.KEYRING_KEY, self._username)
-        auth_key, auth_salt = crypt_utils.generate_hash(secret_key, main_key)
-        crypt_key, crypt_salt = crypt_utils.generate_hash(secret_key, main_key)
+        auth_key, auth_salt = crypt_utils.generate_hash(main_key)
+        crypt_key, crypt_salt = crypt_utils.generate_hash(main_key)
         statement = 'UPDATE account SET auth_key = ?, auth_salt = ?, crypt_salt = ? WHERE username = ?'
         self._db.execute(statement, (auth_key, auth_salt, crypt_salt, self._username))
         self.vaults.update_vaults_crypt(crypt_key)
 
     def delete_user(self):
         self._db.execute('DELETE FROM account WHERE username = ?', (self._username,))
-        keyring.delete_password(constants.KEYRING_KEY, self._username)

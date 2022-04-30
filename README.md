@@ -18,31 +18,23 @@ random passwords and diceware passwords.
 
 ## Building
 Run `make` and follow the instructions printed out.
-Minimum python versions: 3.8.12+, 3.9.7+, 3.10.0+
-Minimum OS versions: MacOS 11+
 
 ## Cryptographic Implementation
-Whenever the user creates an account, the password is normalized and that normalized password is considered the main
-key. In addition, a secret key of 32 cryptographically random bytes is created. A cryptographically random salt of 32
-bytes is then created and used to get the hash of the main key using PBKDF2 with 250 000 iterations. The hashed main key
-and the secret key are then combined by applying the xor on each bit to produce the auth key, and the previously
-generated salt is the auth salt. Furthermore, 32 more cryptographically random bytes are created which will be
-considered the crypt salt, and the same  hashing algorithm is applied with the main key to derive the crypt hash. The
-secret key is saved to the keychain of the computer, and the username, auth key, auth salt, and crypt salt are saved
-to the local database. The crypt key is required to encrypt and decrypt vault information, and thus is not stored. The
-auth key is stored for verification that the password is correct when the user wishes to perform a further action
-requiring authentication.
+Whenever the user creates an account, two cryptographically random salts of 256 bits are created, one of them being the
+auth salt and the other the crypt salt. An auth key is then created by using the PBKDF2-HMAC-SHA256 algorithm with
+250 000 iterations on the password and auth salt combination. A crypt key is created in the same way by applying the
+same algorithm to the password and crypt salt combination. This results in two different keys: the auth key, and the
+crypt key. The auth key, auth salt, and crypt salt are stored in the database along with the username. The crypt key
+and plaintext password are not stored.
 
-Whenever the user wishes to perform a command that requires authentication, they must provide the password, which will
-be normalized to create the main key. The secret key will be retrieved from the computer's keychain. The crypt key will
-then be generated using the crypt salt which is in the database by applying the PBDKF2 algorithm with 250 000 iterations
-onto the provided man key and crypt salt and then applying an xor on each bit of that with the secret key. The same will
-be done to retrieve the auth key but by using the auth salt. The auth key will then be retrieved from the database to
-verify that the password was correct. This auth key has no cryptographic value in encrypting and decrypting vault
-passwords or the crypt key, and is only used for failing fast by letting the user know that the password is incorrect.
-The auth key and salt would produce gibberish if a malicious user were to try and use it to decrypt vault passwords.
+Whenever the user performs an operation requiring authorization, they must provide the password. The password and auth
+salt from the database are used on the same password hashing algorithm to produce the auth key again. If both auth keys
+do not match, the user's password is incorrect. This step is only used for determining if the password is correct, and
+a malicious attacker could not use any information in the database to decrypt vault passwords. To decrypt vault
+passwords, the crypt key is needed, and is not stored in the database. To generate the crypt key, the password and
+crypt salt combination are used in the same hashing algorithm.
 
-Whenever the user wishes to create a vault, the information is encrypted using AES in CBC mode with a cryptographically
-random initialization vector. The initialization vector and encrypted fields are then stores to the database. Whenever
-the user wishes to retrieve vault information, the crypt key (which is generated from the main key and secret key) and
-initialization vector is used to decrypt the vault information.
+With the crypt key, the user can encrypt and decrypt vaults. Vault information is encrypted using AES in CBC mode with
+a cryptographically random initialization vector. The initialization vector and encrypted fields are then stored in the
+database. Whenever the user wishes to retrieve vault information, the crypt key and initialization vector are used to
+decrypt the vault information.
