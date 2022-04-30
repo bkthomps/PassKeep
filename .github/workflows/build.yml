@@ -1,12 +1,12 @@
 name: build
 on: [push]
 jobs:
-  general:
+  test:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [macos-11, macos-12]
-        python-version: ['3.8.12', '3.9.7', '3.10.0']
+        os: [macos-latest, ubuntu-latest]
+        python-version: ['3.7', '3']
     steps:
     - uses: actions/checkout@v3
     - uses: actions/setup-python@v3
